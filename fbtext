@@ -1,0 +1,77 @@
+#!/usr/bin/python2
+# Write text to frame buffer
+from __future__ import print_function
+import os, sys, fcntl, mmap, getopt
+from pgmagick import Image, Geometry, Color, GravityType, DrawableList, DrawableGravity, DrawableText, Blob
+import fb
+
+bg='black'
+fg='white'
+gravity='nw';
+point=20
+wrap=False
+font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
+device="/dev/fb0"
+
+try:
+    
+    opts, args = getopt.getopt(sys.argv[1:],"b:f:g:ms:wd:")
+    if len(args): raise Exception("Unexpected argument: "+" ".join(args))
+    for opt, arg in opts:
+        if   opt == '-b': bg=Color(arg)    
+        elif opt == '-f': fg=Color(arg)
+        elif opt == '-g': gravity=arg
+        elif opt == '-m': font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
+        elif opt == '-p': font=opt
+        elif opt == '-s': point=int(arg)
+        elif opt == '-w': wrap=True
+        elif opt == '-d': device=int(arg)
+        else: raise Exception("Invalid option "+opt)
+
+    gravity = {
+        'nw': (GravityType.NorthWestGravity,   (10, point)),
+        'n':  (GravityType.NorthGravity,       (0, point)),
+        'ne': (GravityType.NorthEastGravity,   (10, point)),
+        'w':  (GravityType.WestGravity,        (10, 0)),
+        'c':  (GravityType.CenterGravity,      (0, 0)),
+        'e':  (GravityType.EastGravity,        (10, 0)),
+        'sw': (GravityType.SouthWestGravity,   (10, -point)),
+        'se': (GravityType.SouthEastGravity,   (10, -point)),
+        's':  (GravityType.SouthGravity,       (0, -point)),
+    }[gravity]
+
+except Exception as e:
+
+    print (str(e))
+    
+    print ("""Usage:
+
+    echo 'Arbitrary text' | fbtext [options]
+
+Write arbitrary, possibly multi-line text to frame buffer. Options are:
+
+    -b color                - background color, as a name or in #XXXXXX notation, default is 'black'
+    -f color                - foreground color, default is 'white'
+    -g direction            - text gravity, one of 'nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', or 'se'. Default is 'nw'.
+    -m                      - use monotype font (default is proportional)
+    -s point                - font point size, default is 20
+    -w                      - wrap text to fit (default no)
+    -d device               - framebuffer device, default is "/dev/fb0" 
+""", file=sys.stderr)
+
+    sys.exit(1)
+
+fb=fb.framebuffer(device)        
+im=Image(Geometry(fb.width,fb.height),bg)
+im.fillColor(fg);
+im.strokeColor(Color("transparent"))
+im.fontPointsize(point)
+im.font(font)
+im.depth(8)
+dl=DrawableList()
+dl.append(DrawableGravity(gravity[0]))
+dl.append(DrawableText(gravity[1][0], gravity[1][1], sys.stdin.read().rstrip()))
+im.draw(dl)
+blob=Blob()
+im.write(blob,'RGB')
+fb.pack(blob.data)
