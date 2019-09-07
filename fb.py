@@ -1,12 +1,12 @@
 #!/usr/bin/python2
 
-import os, struct
+import os, sys
 from ctypes import * 
 
 class framebuffer(object):
     # open indexed framebuffer and mmap it
     def __init__(self, device="/dev/fb0"):
-        self.lib=CDLL("./fb.bin")
+        self.lib=CDLL(sys.path[0]+"/fb.bin")
         self.fbinfo=(c_uint*16)(); # too big is ok
         res=self.lib.fbopen(byref(self.fbinfo), device)
         if res: 
