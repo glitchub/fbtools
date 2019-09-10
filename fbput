@@ -1,0 +1,36 @@
+#!/usr/bin/python2
+# DO NOT REMOVE THIS LINE - coding: utf-8
+from __future__ import print_function
+import os, sys, getopt
+import fb
+
+device="/dev/fb0"
+
+try:
+
+    opts, args = getopt.getopt(sys.argv[1:],"d:")
+    for opt, arg in opts:
+        if opt == "-d": device=arg
+        else: raise Exception("Invalid option '%s'" % opt)
+    if len(args) != 1: raise Exception("Expected a file name (or '-')") 
+    input = sys,stdin if args[0] == '-' else open(args[0])        
+
+except Exception as e:
+
+    print (str(e),"""
+
+Usage:
+
+    fbput [options] rawRGB.bin
+
+Copy raw 24-bit RGB data from file to frame buffer. If file name is '-', copy
+from stdin.
+
+Options are:
+
+    -d device   - framebuffer device, default is "/dev/fb0"
+""", file=sys.stderr)
+
+    quit(1)
+
+fb.framebuffer(device).pack(input.read())

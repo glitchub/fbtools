@@ -1,0 +1,35 @@
+#!/usr/bin/python2
+# DO NOT REMOVE THIS LINE - coding: utf-8
+from __future__ import print_function
+import os, sys, getopt
+import fb
+
+device="/dev/fb0"
+
+try:
+
+    opts, args = getopt.getopt(sys.argv[1:],"d:")
+    for opt, arg in opts:
+        if opt == "-d": device=arg
+        else: raise Exception("Invalid option '%s'" % opt)
+    if len(args): raise Exception("Unexpected argument '%s'" % ' '.join(args)) 
+
+except Exception as e:
+
+    print (str(e),"""
+
+Usage:
+
+    fbquery [options]
+
+Print frame buffer size in format "WIDTHxHEIGHT". 
+
+Options are:
+
+    -d device   - framebuffer device, default is "/dev/fb0"
+""", file=sys.stderr)
+
+    quit(1)
+
+fb=fb.framebuffer(device)
+print("%dx%d" % (fb.width, fb.height))

@@ -1,0 +1,70 @@
+#!/usr/bin/python2
+# DO NOT REMOVE THIS LINE - coding: utf-8
+from __future__ import print_function
+import os, sys, fcntl, mmap, getopt
+from pgmagick import *
+import fb
+
+color="black"
+margin=0
+device="/dev/fb0"
+stretch=False
+debug=False
+
+try:
+
+    opts, args = getopt.getopt(sys.argv[1:],"c:d:sm:z")
+    for opt, arg in opts:
+        if   opt == "-c": color=arg.lower()
+        elif opt == "-d": device=arg
+        elif opt == "-m": margin=int(arg)
+        elif opt == "-s": stretch=True
+        elif opt == "-z": debug=True
+        else: raise Exception("Invalid option '%s'" % opt)
+    if len(args) != 1: raise Exception("Expected a file name (or '-')") 
+    input = sys.stdin if  args[0] == '-' else open(args[0])
+
+except Exception as e:
+
+    print (str(e),"""
+
+Usage:
+
+    fbimage [options] image.file
+
+Decode an image file and output to frame buffer. 
+
+Options are:
+
+    -c color                - background color, default is "black"
+    -d device               - framebuffer device, default is "/dev/fb0"
+    -m width                - margin width, default is "0" (no margin)
+    -s                      - stretch the image to fit, default is scale to fit.
+
+If the image file name is '-' then read it from stdin.
+""", file=sys.stderr)
+
+    quit(1)
+
+# open framebuffer first so we can get its geometry
+fb=fb.framebuffer(device)
+if debug: print("frame buffer height=%d width=%d" % (fb.height, fb.width))
+
+# create background layer
+base=Image(Geometry(fb.width, fb.height), Color(color))
+base.fillColor(Color(color))
+base.strokeWidth(0)
+
+im=Image(Blob(input.read()))
+if debug: print("original image height=%d width=%d" % (im.rows(), im.columns()))
+
+g=Geometry(fb.width-(margin*2), fb.height-(margin*2))
+if stretch: g.aspect(True)
+im.scale(g)
+if debug: print("scaled image height=%d width=%d" % (im.rows(), im.columns()))
+
+base.composite(im, GravityType.CenterGravity, CompositeOperator.OverCompositeOp)
+
+blob=Blob()
+base.write(blob,"RGB",8)
+fb.pack(blob.data)

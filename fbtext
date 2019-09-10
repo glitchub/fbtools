@@ -23,7 +23,10 @@ reference='M'
 try:
 
     opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
-    if len(args): raise Exception("Unexpected argument: "+" ".join(args))
+    
+    if len(args) != 1: raise Exception("Expected a file name (or '-')")
+    input = sys.stdin if args[0] == '-' else open(args[0])
+
     for opt, arg in opts:
         if   opt == "-b": border=int(arg)
         elif opt == "-c":
@@ -38,6 +41,7 @@ try:
                 raise Exception("No such file '%s'" % font)
         elif opt == "-g":
             gravity=arg.lower()
+            gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
             if not gravity in ("nw","n","ne","w","c","e","sw","s","se"):
                 raise Exception("Invalid gravity '%s'" % gravity)
         elif opt == "-m": margin=int(arg)
@@ -55,12 +59,12 @@ except Exception as e:
 
 Usage:
 
-    echo "Arbitrary text" | fbtext [options]
+    fbtext [options] text.file
 
 Write arbitrary, possibly multi-line text to frame buffer. Options are:
 
     -b width                - screen border width, default is "0" (no border)
-    -c color:color          - text color, as "foreground:background", default is "white:black"
+    -c [fg][:bg]            - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
     -f path/to/font         - specify font, default is "WenQuanYiMicroHeiMono.ttf"
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
@@ -74,19 +78,20 @@ Write arbitrary, possibly multi-line text to frame buffer. Options are:
 Note -w, -x, and -y operations are based on size of reference character
 specified by -r, best results are with a monospaced font.
 
+If the text file name is '-' then read it from stdin.
+
 """, file=sys.stderr)
 
     quit(1)
 
 # open framebuffer first so we can get its geometry
 fb=fb.framebuffer(device)
-if debug: print("fbheight=%d fbwidth=%d" % (fb.height, fb.width))
+if debug: print("frame buffer height=%d width=%d" % (fb.height, fb.width))
 
 # create surface
 im=Image(Geometry(fb.width,fb.height),Color(bg))
 im.fillColor(Color(fg))
 im.strokeWidth(0)
-im.depth(8)
 im.font(font)
 im.fontPointsize(point)
 
@@ -107,7 +112,7 @@ margin += border
 tm=TypeMetric()
 im.fontTypeMetrics(reference,tm)
 if debug: 
-    print("reference=%s: ascent=%d descent=%d textheight=%d textwidth=%d maxadvance=%d" % 
+    print("reference char '%s': ascent=%d descent=%d textheight=%d textwidth=%d maxadvance=%d" % 
           (reference, tm.ascent(),tm.descent(),tm.textHeight(),tm.textWidth(), tm.maxHorizontalAdvance()))
 
 # x and y margins are based on gravity
@@ -127,8 +132,8 @@ maxcols=int((fb.width-(margin*2))/tm.textWidth())
 maxlines=int((fb.height-(margin*2))/(tm.textHeight()+1))
 if debug: print("xoffset=%d yoffset=%d maxcols=%d maxlines=%d" % (xoffset, yoffset, maxcols, maxlines))
 
-# suck up utf-8 text
-text=sys.stdin.read().decode("utf8").rstrip("\n")
+# get text fro file or stdin
+text=input.read().decode("utf8").rstrip("\n")
 
 if wrap:
     text=reduce(lambda line,word: line+(' ' if (len(line)-line.rfind('\n') + len(word.split('\n',1)[0]) <= maxcols) else '\n')+word, text.split(' '))
@@ -153,6 +158,5 @@ dl.append(DrawableText(xoffset, yoffset, text.encode("utf8")))
 im.draw(dl)
 
 blob=Blob()
-im.write(blob,"RGB")
+im.write(blob,"RGB",8)
 fb.pack(blob.data)
-
