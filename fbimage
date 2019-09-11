@@ -41,7 +41,9 @@ Options are:
     -m width                - margin width, default is "0" (no margin)
     -s                      - stretch the image to fit, default is scale to fit.
 
-If the image file name is '-' then read it from stdin.
+
+If image.file is "-" then the image is read from stdin.
+
 """, file=sys.stderr)
 
     quit(1)

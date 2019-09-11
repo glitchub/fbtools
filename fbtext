@@ -2,7 +2,7 @@
 # DO NOT REMOVE THIS LINE - coding: utf-8
 # Write UTF-8 text on stdin to frame buffer
 from __future__ import print_function
-import os, sys, fcntl, mmap, getopt
+import os, sys, getopt
 from pgmagick import *
 import fb
 
@@ -37,6 +37,8 @@ try:
         elif opt == "-d": device=arg
         elif opt == "-f":
             font=arg
+            if font == "mono": font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
+            elif font == "prop": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
             if not os.path.isfile(font):
                 raise Exception("No such file '%s'" % font)
         elif opt == "-g":
@@ -45,6 +47,7 @@ try:
             if not gravity in ("nw","n","ne","w","c","e","sw","s","se"):
                 raise Exception("Invalid gravity '%s'" % gravity)
         elif opt == "-m": margin=int(arg)
+        elif opt == "-p": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
         elif opt == "-r": reference=arg
         elif opt == "-s": point=int(arg)
         elif opt == "-w": wrap=True
@@ -61,12 +64,14 @@ Usage:
 
     fbtext [options] text.file
 
-Write arbitrary, possibly multi-line text to frame buffer. Options are:
+Write arbitrary multi-line UTF8 text to frame buffer. 
+
+Options are:
 
     -b width                - screen border width, default is "0" (no border)
     -c [fg][:bg]            - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
-    -f path/to/font         - specify font, default is "WenQuanYiMicroHeiMono.ttf"
+    -f path/to/font         - specify path to font
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
     -m                      - text margin in pixels, default is "10"
     -r char                 - reference character, default is "M"
@@ -75,8 +80,13 @@ Write arbitrary, possibly multi-line text to frame buffer. Options are:
     -x                      - trim text to page width
     -y                      - trim text to page height
 
-Note -w, -x, and -y operations are based on size of reference character
-specified by -r, best results are with a monospaced font.
+Font names "mono" and "prop" will select built-in monospaced or proportional
+fonts. The default font is "mono".
+
+-w, -x, and -y operations are based on size of reference character specified by
+-r. These should be avoided when using proportional fonts.
+
+If text.file is "-" then text is read from stdin.
 
 If the text file name is '-' then read it from stdin.
 
