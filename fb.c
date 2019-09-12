@@ -7,17 +7,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#include <linux/fb.h>
-
-struct fbinfo
-{
-    uint32_t height,  // height must be first
-             width,   // width must be second
-             *mmap,   // the rest is private
-             red,
-             green,
-             blue;
-};
+#include <errno.h>
+#include "fb.h"
 
 int fbopen(struct fbinfo *fb, char *device)
 {
@@ -34,6 +25,7 @@ int fbopen(struct fbinfo *fb, char *device)
     if (vsi.bits_per_pixel != 32 || vsi.red.length != 8 || vsi.green.length != 8 || vsi.blue.length != 8)
     {
         close(fd);
+        errno=ERANGE;
         return 3;
     }
 
@@ -44,7 +36,11 @@ int fbopen(struct fbinfo *fb, char *device)
     fb->blue = vsi.blue.offset;
     fb->mmap=mmap(NULL, vsi.xres_virtual * vsi.yres_virtual * 4, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
-    if (fb->mmap == MAP_FAILED) return 4;
+    if (fb->mmap == MAP_FAILED) 
+    {
+        errno=EFAULT;
+        return 4;
+    }    
 
     return 0;
 }
@@ -53,7 +49,7 @@ int fbopen(struct fbinfo *fb, char *device)
 // Return 1 if pixels+offset is out of range. *rgfb size must be pixels*3 bytes
 int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 {
-    if (offset+pixels > fb->height*fb->width) return -1;
+    if (offset+pixels > fb->height*fb->width) return 1;
 
     while (pixels--)
     {
@@ -70,7 +66,7 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 // long.
 int fbpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 {
-    if (offset+pixels > fb->height*fb->width) return -1;
+    if (offset+pixels > fb->height*fb->width) return 1;
 
     while (pixels--)
     {

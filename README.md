@@ -1,10 +1,28 @@
 Frame buffer manipulation tools for linux.
 
-This requires the python2 pgmagick package (obtained via 'apt install
-python-pgmagick', 'pip install pgmagick', etc).
+Run 'make' to build fbquery, fbget, and fbput executables, and fb.bin library
+used by fb.py. 
 
-Before use you must 'make' the framebuffer binary fb.bin which handles bulk
-copying of RGB data to the frame buffer (python is much too slow for that).
+fbtext and fbimage are python2 and require the pgmagick module (i.e. obtained
+via 'apt install python-pgmagick', 'pip install pgmagick', etc). 
 
-fb.bin and fb.py must be located in the same directory as the various fb*
-scripts.
+The scripts must be located in the same directory as fb.py, fb.bin, and the
+.ttf fonts.
+
+fbput and fbquery can be used with Imagemagick/Graphicsmagick.
+
+    Fill screen with a color: 
+
+        gm convert -size $(./fbquery) xc:blue -depth 8 RGB:- | ./fbput
+
+    Fill screen with an image: 
+
+        gm convert image.jpg -resize $(./fbquery)! -depth 8 RGB:- | ./fbput
+
+    Write an arbitrary text file to screen: 
+
+        gm convert -size $(./fbquery) xc:black -fill green -pointsize 20 -draw 'text 10,10 "@textfile" -depth 8 RGB: | ./fbput
+
+The python scripts provide similar functionality with more smarts.
+
+Run any script or program with -h option for details.
