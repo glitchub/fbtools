@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 
     if (fbopen(&fb, device)) die("Failed to open framebuffer %S: %s\n", device, strerror(errno));
 
-    for (int line=0; line < fb.width; line++)
+    for (int line=0; line < fb.height; line++)
     {
         uint8_t RGB[fb.width*3]; // one line
         int pixels = fread(&RGB, 3, fb.width, stdin);
