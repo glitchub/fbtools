@@ -19,28 +19,44 @@ int fbopen(struct fbinfo *fb, char *device)
     if (ioctl(fd, FBIOGET_VSCREENINFO, &vsi) < 0)
     {
         close(fd);
-        return 2;
+        return 1;
     }
 
-    if (vsi.bits_per_pixel != 32 || vsi.red.length != 8 || vsi.green.length != 8 || vsi.blue.length != 8)
+    if (vsi.bits_per_pixel == 32 && vsi.red.length == 8 && vsi.green.length == 8 && vsi.blue.length == 8)
+    {
+        // ARGB
+        fb->bpp=4;
+    }   
+    else if (vsi.bits_per_pixel == 24 && vsi.red.length == 8 && vsi.green.length == 8 && vsi.blue.length == 8)
+    {
+        // RGB
+        fb->bpp=3;
+    }
+    else if (vsi.bits_per_pixel == 16 && vsi.red.length == 5 && vsi.green.length == 6 && vsi.blue.length == 5)
+    {
+        // 565
+        fb->bpp=2;
+    } else
     {
         close(fd);
         errno=ERANGE;
-        return 3;
+        return 1;
     }
-
+    
     fb->height = vsi.yres_virtual;
     fb->width = vsi.xres_virtual;
     fb->red = vsi.red.offset;
     fb->green = vsi.green.offset;
     fb->blue = vsi.blue.offset;
-    fb->mmap=mmap(NULL, vsi.xres_virtual * vsi.yres_virtual * 4, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+
+    fb->mmap=mmap(NULL, vsi.xres_virtual * vsi.yres_virtual * fb->bpp, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
-    if (fb->mmap == MAP_FAILED) 
+
+    if (fb->mmap == MAP_FAILED)
     {
         errno=EFAULT;
-        return 4;
-    }    
+        return 2;
+    }
 
     return 0;
 }
@@ -51,12 +67,44 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 {
     if (offset+pixels > fb->height*fb->width) return 1;
 
-    while (pixels--)
+    switch(fb->bpp)
     {
-        uint32_t p = fb->mmap[offset++];
-        *rgb++ = p >> fb->red;
-        *rgb++ = p >> fb->green;
-        *rgb++ = p >> fb->blue;
+        case 2:
+        {
+            uint16_t *p = fb->mmap+(offset*2);
+            while (pixels--)
+            {
+                uint16_t n = *p++;
+                *rgb++ = (n >> fb->red) << 3;
+                *rgb++ = (n >> fb->green) << 2;
+                *rgb++ = (n >> fb->blue) << 3;
+            }
+            break;
+        }    
+        case 3:
+        {
+            uint8_t *p = fb->mmap+(offset*3);
+            while (pixels--)
+            {
+                uint32_t n = (*p++ << 0) + (*p++ << 8) + (*p++ << 16); // little-endian
+                *rgb++ = n >> fb->red;
+                *rgb++ = n >> fb->green;
+                *rgb++ = n >> fb->blue;
+            
+            }
+        }    
+        case 4:
+        {
+            uint32_t *p = fb->mmap+(offset*4);
+            while (pixels--)
+            {
+                uint32_t n = *p++;
+                *rgb++ = n >> fb->red;
+                *rgb++ = n >> fb->green;
+                *rgb++ = n >> fb->blue;
+            }
+            break;
+        }            
     }
     return 0;
 }
@@ -68,10 +116,40 @@ int fbpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 {
     if (offset+pixels > fb->height*fb->width) return 1;
 
-    while (pixels--)
+    switch(fb->bpp)
     {
-        fb->mmap[offset++]=(rgb[0] << fb->red)+(rgb[1] << fb->green)+(rgb[2] << fb->blue);
-        rgb += 3;
+        case 2:
+        {
+            uint16_t *p = fb->mmap+(offset*2);
+            while (pixels--)
+            {
+                *p++ = ((rgb[0]>>3) << fb->red) | ((rgb[1]>>2) << fb->green) | ((rgb[2]>>3) << fb->blue);
+                rgb += 3;
+            }
+            break;
+        }
+        case 3:
+        {
+            uint8_t *p = fb->mmap+(offset*3);
+            while (pixels--)
+            {
+                uint32_t n = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue);
+                *p++ = n; *p++ = n>>8; *p++ = n >> 16; // little-endian
+                rgb += 3;
+            }
+            break;
+        }
+        case 4:
+        {
+            uint32_t *p = fb->mmap+(offset*4);
+
+            while (pixels--)
+            {
+                *p++ = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue);
+                rgb += 3;
+            }
+            break;
+        }     
     }
     return 0;
 }

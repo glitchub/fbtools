@@ -6,11 +6,11 @@ import os, sys, getopt
 from pgmagick import *
 import fb
 
-bg="black"
-fg="white"
+bg=None
+fg=None
 gravity="nw"
 point=20
-font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
+font=None
 device="/dev/fb0"
 margin=10
 border=0
@@ -29,25 +29,11 @@ try:
 
     for opt, arg in opts:
         if   opt == "-b": border=int(arg)
-        elif opt == "-c":
-            colors=arg.lower().split(":",2)
-            f,b=(arg.lower().split(":",1)+[''])[0:2]
-            if f: fg=f
-            if b: bg=b
+        elif opt == "-c": fg,bg=(arg.lower()+":").split(":")[:2]
         elif opt == "-d": device=arg
-        elif opt == "-f":
-            font=arg
-            if font == "mono": font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
-            elif font == "prop": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
-            if not os.path.isfile(font):
-                raise Exception("No such file '%s'" % font)
-        elif opt == "-g":
-            gravity=arg.lower()
-            gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
-            if not gravity in ("nw","n","ne","w","c","e","sw","s","se"):
-                raise Exception("Invalid gravity '%s'" % gravity)
+        elif opt == "-f": font=arg
+        elif opt == "-g": gravity=arg.lower()
         elif opt == "-m": margin=int(arg)
-        elif opt == "-p": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
         elif opt == "-r": reference=arg
         elif opt == "-s": point=int(arg)
         elif opt == "-w": wrap=True
@@ -55,6 +41,13 @@ try:
         elif opt == "-y": ytrim=True
         elif opt == "-z": debug=True
         else: raise Exception("Invalid option '%s'" % opt)
+
+    gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
+    if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
+
+    if not font or font[:1] == "m": font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
+    elif font[:1] == "p": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
+    if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
 
 except Exception as e:
 
@@ -71,7 +64,7 @@ Options are:
     -b width                - screen border width, default is "0" (no border)
     -c [fg][:bg]            - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
-    -f path/to/font         - specify path to font
+    -f path/to/font         - path to font
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
     -m                      - text margin in pixels, default is "10"
     -r char                 - reference character, default is "M"
@@ -80,8 +73,8 @@ Options are:
     -x                      - trim text to page width
     -y                      - trim text to page height
 
-Font names "mono" and "prop" will select built-in monospaced or proportional
-fonts. The default font is "mono".
+Font names "m" and "p" will select built-in monospaced or proportional fonts.
+The default font is "m".
 
 -w, -x, and -y operations are based on size of reference character specified by
 -r. These should be avoided when using proportional fonts.
@@ -99,8 +92,8 @@ fb=fb.framebuffer(device)
 if debug: print("frame buffer height=%d width=%d" % (fb.height, fb.width))
 
 # create surface
-im=Image(Geometry(fb.width,fb.height),Color(bg))
-im.fillColor(Color(fg))
+im=Image(Geometry(fb.width,fb.height),Color(bg or "black"))
+im.fillColor(Color(fg or "white"))
 im.strokeWidth(0)
 im.font(font)
 im.fontPointsize(point)
@@ -142,17 +135,31 @@ maxcols=int((fb.width-(margin*2))/tm.textWidth())
 maxlines=int((fb.height-(margin*2))/(tm.textHeight()+1))
 if debug: print("xoffset=%d yoffset=%d maxcols=%d maxlines=%d" % (xoffset, yoffset, maxcols, maxlines))
 
-# get text fro file or stdin
-text=input.read().decode("utf8").rstrip("\n")
+# get text from file or stdin, normalize to an array of lines with tabs expanded
+text = map(lambda s:s.expandtabs(),input.read().decode("utf8").splitlines())
 
 if wrap:
-    text=reduce(lambda line,word: line+(' ' if (len(line)-line.rfind('\n') + len(word.split('\n',1)[0]) <= maxcols) else '\n')+word, text.split(' '))
-
-if xtrim:
-    text = "\n".join(map(lambda s:s[0:maxcols],text.split("\n")))
+    def wrapt(t):
+        t=t.rstrip(' ')
+        while len(t) > maxcols:
+            i=t[:maxcols].rfind(' ')
+            if (i < 0):
+                yield t[:maxcols]
+                t=t[maxcols:]
+            else:
+                yield t[:i]
+                t=t[i+1:]
+            t=t.rstrip(' ')
+        yield t
+    text=[w for t in text for w in wrapt(t)]
 
 if ytrim:
-    text = "\n".join(text.split("\n",maxlines+1)[0:maxlines])
+    text = text[:maxlines]
+
+if xtrim:
+    text = map(lambda s:s[:maxcols],text)
+
+if debug: print('\n'.join(text))
 
 dl=DrawableList()
 dl.append(DrawableGravity({"nw": GravityType.NorthWestGravity,
@@ -164,7 +171,7 @@ dl.append(DrawableGravity({"nw": GravityType.NorthWestGravity,
                            "sw": GravityType.SouthWestGravity,
                            "s":  GravityType.SouthGravity,
                            "se": GravityType.SouthEastGravity}[gravity]))
-dl.append(DrawableText(xoffset, yoffset, text.encode("utf8")))
+dl.append(DrawableText(xoffset, yoffset, '\n'.join(text).encode("utf8")))
 im.draw(dl)
 
 blob=Blob()

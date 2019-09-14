@@ -1,11 +1,14 @@
-GENERATE=fb.bin fbquery fbget fbput
-default: $(GENERATE)
+PROGRAMS = fbquery fbget fbput
 
-fb.bin: fb.o; gcc -shared -Wl,-soname,$@ -o $@ $<
+CFLAGS += -s -O3
 
-fbput fbquery fbget: % : %.c fb.o
+default: ${PROGRAMS} fb.bin
+
+${PROGRAMS}: % : %.c fb.o
+
+fb.bin: fb.o; gcc ${CFLAGS} -shared -Wl,-soname,$@ -o $@ $<
 
 .INTERMEDIATE: fb.o  
-fb.o: fb.c; gcc -c -fPIC -o $@ $<
+fb.o: fb.c; gcc ${CFLAGS} -c -fPIC -o $@ $<
 
-clean:; rm -f $(GENERATE) fb.pyc fb.o
+clean:; rm -f ${PROGRAMS} fb.bin fb.pyc fb.o

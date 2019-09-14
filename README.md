@@ -1,13 +1,14 @@
 Frame buffer manipulation tools for linux.
 
+Framebuffer depths 16 (565), 24 (RGB), and 32 (ARGB) are supported.
+
 Run 'make' to build fbquery, fbget, and fbput executables, and fb.bin library
 used by fb.py. 
 
 fbtext and fbimage are python2 and require the pgmagick module (i.e. obtained
 via 'apt install python-pgmagick', 'pip install pgmagick', etc). 
 
-The scripts must be located in the same directory as fb.py, fb.bin, and the
-.ttf fonts.
+The scripts must be located in the same directory as fb.py, fb.bin.
 
 fbput and fbquery can be used with Imagemagick/Graphicsmagick.
 
