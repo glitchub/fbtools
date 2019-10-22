@@ -1,63 +1,15 @@
 #!/usr/bin/python2
-# DO NOT REMOVE THIS LINE - coding: utf-8
 # Write UTF-8 text on stdin to frame buffer
+
 from __future__ import print_function
-import os, sys, getopt
-from pgmagick import *
-import fb
+import os, sys, getopt, fbtext
 
-bg=None
-fg=None
-gravity="nw"
-point=20
-font=None
-device="/dev/fb0"
-margin=10
-border=0
-wrap=False
-xtrim=False
-ytrim=False
-debug=False
-reference='M'
-
-try:
-
-    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
-    
-    if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    input = sys.stdin if args[0] == '-' else open(args[0])
-
-    for opt, arg in opts:
-        if   opt == "-b": border=int(arg)
-        elif opt == "-c": fg,bg=(arg.lower()+":").split(":")[:2]
-        elif opt == "-d": device=arg
-        elif opt == "-f": font=arg
-        elif opt == "-g": gravity=arg.lower()
-        elif opt == "-m": margin=int(arg)
-        elif opt == "-r": reference=arg
-        elif opt == "-s": point=int(arg)
-        elif opt == "-w": wrap=True
-        elif opt == "-x": xtrim=True
-        elif opt == "-y": ytrim=True
-        elif opt == "-z": debug=True
-        else: raise Exception("Invalid option '%s'" % opt)
-
-    gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
-    if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
-
-    if not font or font[:1] == "m": font=sys.path[0]+"/WenQuanYiMicroHeiMono.ttf"
-    elif font[:1] == "p": font=sys.path[0]+"/WenQuanYiMicroHei.ttf"
-    if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
-
-except Exception as e:
-
-    print (str(e),"""
-
+usage = """
 Usage:
 
     fbtext [options] text.file
 
-Write arbitrary multi-line UTF8 text to frame buffer. 
+Write arbitrary multi-line UTF8 text to frame buffer.
 
 Options are:
 
@@ -79,101 +31,62 @@ The default font is "m".
 -w, -x, and -y operations are based on size of reference character specified by
 -r. These should be avoided when using proportional fonts.
 
-If text.file is "-" then text is read from stdin.
+If the text file name is '-' then read text from stdin.
+"""
 
-If the text file name is '-' then read it from stdin.
+__here__=os.path.dirname(__file__) or '.'
 
-""", file=sys.stderr)
+# set defaults
+bg=None
+fg=None
+gravity="nw"
+point=20
+font=None
+device="/dev/fb0"
+margin=10
+border=0
+wrap=False
+xtrim=False
+ytrim=False
+debug=False
+reference='M'
+
+try:
+
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
+
+    if len(args) != 1: raise Exception("Expected a file name (or '-')")
+    input = sys.stdin if args[0] == '-' else open(args[0])
+
+    for opt, arg in opts:
+        if   opt == "-b": border=int(arg)
+        elif opt == "-c": fg,bg=(arg.lower()+":").split(":")[:2]
+        elif opt == "-d": device=arg
+        elif opt == "-f": font=arg
+        elif opt == "-g": gravity=arg.lower()
+        elif opt == "-m": margin=int(arg)
+        elif opt == "-r": reference=arg
+        elif opt == "-s": point=int(arg)
+        elif opt == "-w": wrap=True
+        elif opt == "-x": xtrim=True
+        elif opt == "-y": ytrim=True
+        elif opt == "-z": debug=True
+        else: raise Exception("Invalid option '%s'" % opt)
+
+    gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
+    if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
+
+    if not font or font[:1] == "m": font=__here__+"/WenQuanYiMicroHeiMono.ttf"
+    elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
+    if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
+
+    # Get text from file or stdin, normalize to an array of lines with tabs expanded
+    text = map(lambda s:s.expandtabs(),input.read().decode("utf8").splitlines())
+
+except Exception as e:
+
+    print (str(e),"\n",usage,file=sys.stderr)
 
     quit(1)
 
-# open framebuffer first so we can get its geometry
-fb=fb.framebuffer(device)
-if debug: print("frame buffer height=%d width=%d" % (fb.height, fb.width))
-
-# create surface
-im=Image(Geometry(fb.width,fb.height),Color(bg or "black"))
-im.fillColor(Color(fg or "white"))
-im.strokeWidth(0)
-im.font(font)
-im.fontPointsize(point)
-
-if border == 1:
-    im.draw(DrawableLine(0, 0, fb.width-1, 0)) # across the top
-    im.draw(DrawableLine(0, 0, 0, fb.height-1)) # down the left
-    im.draw(DrawableLine(fb.width-1, 0, fb.width-1, fb.height-1)) # down the right
-    im.draw(DrawableLine(0, fb.height-1, fb.width-1, fb.height-1)) # across the bottom
-elif border > 0:
-    im.draw(DrawableRectangle(0, 0, fb.width-1, border-1)) # across the top
-    im.draw(DrawableRectangle(0, 0, border-1, fb.height-1)) # down the left
-    im.draw(DrawableRectangle(fb.width-border, 0, fb.width-1, fb.height-1)) # down the right
-    im.draw(DrawableRectangle(0, fb.height-border, fb.width-1, fb.height-1)) # across the bottom
-
-margin += border
-
-# get font infp
-tm=TypeMetric()
-im.fontTypeMetrics(reference,tm)
-if debug: 
-    print("reference char '%s': ascent=%d descent=%d textheight=%d textwidth=%d maxadvance=%d" % 
-          (reference, tm.ascent(),tm.descent(),tm.textHeight(),tm.textWidth(), tm.maxHorizontalAdvance()))
-
-# x and y margins are based on gravity
-if gravity in ("nw","ne","w","e","sw","se"):
-    xoffset=margin
-else:
-    xoffset=0
-
-if gravity in ("nw","n","ne"):
-    yoffset=margin+tm.ascent()
-elif gravity in ("sw","s","se"):
-    yoffset=margin+(-tm.descent())
-else:
-    yoffset=0
-
-maxcols=int((fb.width-(margin*2))/tm.textWidth())
-maxlines=int((fb.height-(margin*2))/(tm.textHeight()+1))
-if debug: print("xoffset=%d yoffset=%d maxcols=%d maxlines=%d" % (xoffset, yoffset, maxcols, maxlines))
-
-# get text from file or stdin, normalize to an array of lines with tabs expanded
-text = map(lambda s:s.expandtabs(),input.read().decode("utf8").splitlines())
-
-if wrap:
-    def wrapt(t):
-        t=t.rstrip(' ')
-        while len(t) > maxcols:
-            i=t[:maxcols].rfind(' ')
-            if (i < 0):
-                yield t[:maxcols]
-                t=t[maxcols:]
-            else:
-                yield t[:i]
-                t=t[i+1:]
-            t=t.rstrip(' ')
-        yield t
-    text=[w for t in text for w in wrapt(t)]
-
-if ytrim:
-    text = text[:maxlines]
-
-if xtrim:
-    text = map(lambda s:s[:maxcols],text)
-
-if debug: print('\n'.join(text))
-
-dl=DrawableList()
-dl.append(DrawableGravity({"nw": GravityType.NorthWestGravity,
-                           "n":  GravityType.NorthGravity,
-                           "ne": GravityType.NorthEastGravity,
-                           "w":  GravityType.WestGravity,
-                           "c":  GravityType.CenterGravity,
-                           "e":  GravityType.EastGravity,
-                           "sw": GravityType.SouthWestGravity,
-                           "s":  GravityType.SouthGravity,
-                           "se": GravityType.SouthEastGravity}[gravity]))
-dl.append(DrawableText(xoffset, yoffset, '\n'.join(text).encode("utf8")))
-im.draw(dl)
-
-blob=Blob()
-im.write(blob,"RGB",8)
-fb.pack(blob.data)
+fbtext.fbtext(text,bg,fg,gravity,point,font,device,margin,border,wrap,xtrim,ytrim,debug,reference)
