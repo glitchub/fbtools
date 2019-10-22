@@ -1,6 +1,7 @@
 #!/usr/bin/python2
 from __future__ import print_function
-import os, sys, getopt, fbclear
+import os, sys, getopt
+from fb import fbclear
 
 usage="""
 Usage:
@@ -32,4 +33,4 @@ except Exception as e:
     print (str(e),usage, file=sys.stderr)
     quit(1)
 
-fbclear.fbclear(color, device)
+fbclear(color, device)

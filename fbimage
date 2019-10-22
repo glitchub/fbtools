@@ -1,6 +1,7 @@
 #!/usr/bin/python2
 from __future__ import print_function
-import sys, getopt, fbimage
+import sys, getopt
+from fb import fbimage
 
 usage="""
 Usage:
@@ -42,4 +43,4 @@ except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-fbimage.fbimage(image, color=color, device=device, margin=margin, stretch=stretch, debug=debug)
+fbimage(image, color=color, device=device, margin=margin, stretch=stretch, debug=debug)

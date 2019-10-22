@@ -2,7 +2,8 @@
 # Write UTF-8 text on stdin to frame buffer
 
 from __future__ import print_function
-import os, sys, getopt, fbtext
+import os, sys, getopt
+from fb import fbtext
 
 usage = """
 Usage:
@@ -34,59 +35,57 @@ The default font is "m".
 If the text file name is '-' then read text from stdin.
 """
 
-__here__=os.path.dirname(__file__) or '.'
+__here__ = os.path.dirname(__file__) or '.'
 
 # set defaults
-bg=None
-fg=None
-gravity="nw"
-point=20
-font=None
-device="/dev/fb0"
-margin=10
-border=0
-wrap=False
-xtrim=False
-ytrim=False
-debug=False
-reference='M'
+bg = None
+fg = None
+gravity = "nw"
+point = 20
+font = None
+device = "/dev/fb0"
+margin = 10
+border = 0
+wrap = False
+xtrim = False
+ytrim = False
+debug = False
+reference = 'M'
 
 try:
 
     opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
 
     if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    input = sys.stdin if args[0] == '-' else open(args[0])
+    input = args[0]
 
     for opt, arg in opts:
-        if   opt == "-b": border=int(arg)
-        elif opt == "-c": fg,bg=(arg.lower()+":").split(":")[:2]
-        elif opt == "-d": device=arg
-        elif opt == "-f": font=arg
-        elif opt == "-g": gravity=arg.lower()
-        elif opt == "-m": margin=int(arg)
-        elif opt == "-r": reference=arg
-        elif opt == "-s": point=int(arg)
-        elif opt == "-w": wrap=True
-        elif opt == "-x": xtrim=True
-        elif opt == "-y": ytrim=True
-        elif opt == "-z": debug=True
+        if   opt == "-b": border = int(arg)
+        elif opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
+        elif opt == "-d": device = arg
+        elif opt == "-f": font = arg
+        elif opt == "-g": gravity = arg.lower()
+        elif opt == "-m": margin = int(arg)
+        elif opt == "-r": reference = arg
+        elif opt == "-s": point = int(arg)
+        elif opt == "-w": wrap = True
+        elif opt == "-x": xtrim = True
+        elif opt == "-y": ytrim = True
+        elif opt == "-z": debug = True
         else: raise Exception("Invalid option '%s'" % opt)
 
-    gravity={"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
+    gravity = {"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
     if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
 
-    if not font or font[:1] == "m": font=__here__+"/WenQuanYiMicroHeiMono.ttf"
+    if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
     elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
     if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
 
-    # Get text from file or stdin, normalize to an array of lines with tabs expanded
-    text = map(lambda s:s.expandtabs(),input.read().decode("utf8").splitlines())
-
 except Exception as e:
 
-    print (str(e),"\n",usage,file=sys.stderr)
-
+    print (str(e),"\n",usage,file = sys.stderr)
     quit(1)
 
-fbtext.fbtext(text,bg,fg,gravity,point,font,device,margin,border,wrap,xtrim,ytrim,debug,reference)
+fbtext(input, bg = bg, fg = fg, gravity = gravity, point = point, font = font,
+       device = device, margin = margin, border = border, wrap = wrap, xtrim =
+       xtrim, ytrim = ytrim, debug = debug, reference = reference)
