@@ -1,4 +1,6 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
+# Clear frame buffer, works with python 2 or 3
+
 from __future__ import print_function
 import os, sys, getopt
 from fb import fbclear

@@ -1,30 +1,36 @@
-Frame buffer manipulation tools for linux.
+Frame buffer manipulation tools for linux, supporting frame buffer depths 16
+(565), 24 (RGB), and 32 (ARGB).
 
-Framebuffer depths 16 (565), 24 (RGB), and 32 (ARGB) are supported.
+Files are:
 
-Run 'make' to build fbquery, fbget, and fbput executables, and fb.bin library
-used by fb.py.
+    fbclear: a python script that clears the frame buffer with an optional
+    color.
 
-fbtext.py, fbimage.py, and fbclear.py require the pgmagick module (i.e.
-obtained via 'apt install python-pgmagick', 'pip install pgmagick', etc). These
-are modules, used by fbtext, fbimage, and fbclear respectively.
+    fbimage: a python script that decodes and writes a graphics image file to
+    the frame buffer
 
-All scripts must be located in the same directory as fb.py and fb.bin.
+    fbtext: a python script that reads text from a file or stdin, formats and
+    writes it to the frame buffer.
 
-fbput and fbquery can be used with Imagemagick/Graphicsmagick.
+    fb.py: a python module that provides the core functionality of fbclear,
+    fbimage, and fbtext.
 
-    Fill screen with a color:
+    fbquery.c: a utility program that reports some potentially interesting
+    frame buffer info.
 
-        gm convert -size $(./fbquery) xc:blue -depth 8 RGB:- | ./fbput
+    fbput.c: a utility program that copies raw RGB data from stdin or file to
+    the frame buffer.
 
-    Fill screen with an image:
+    fb.c: a library that provides the access to the raw frame buffer device. It
+    is compiled as a .so, invoked by fb.py, fbput and fbquery.
 
-        gm convert image.jpg -resize $(./fbquery)! -depth 8 RGB:- | ./fbput
+Run 'make' to build the eexecutables, and the fb.bin shared library.
 
-    Write an arbitrary text file to screen:
+The python code is version agnostic and will worh with python2 or python3,
+although the default is python3.
 
-        gm convert -size $(./fbquery) xc:black -fill green -pointsize 20 -draw 'text 10,10 "@textfile" -depth 8 RGB: | ./fbput
+Note it requires the pgmagick module to be installed for whichever version of
+python will be used, e.g. via 'apt install python3-pgmagick', 'pip install
+pgmagick', etc.
 
-The python scripts provide similar functionality with more smarts.
-
-Run any script or program with -h option for details.
+All scripts and programs can be run with -h option to print help.

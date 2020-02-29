@@ -1,5 +1,5 @@
-#!/usr/bin/python2
-# Write UTF-8 text on stdin to frame buffer
+#!/usr/bin/python3
+# Write UTF-8 text to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
 import os, sys, getopt
