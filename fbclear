@@ -2,8 +2,7 @@
 # Clear frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import os, sys, getopt
-from fb import fbclear
+import os, sys, getopt, fb, surface
 
 usage="""
 Usage:
@@ -35,4 +34,6 @@ except Exception as e:
     print (str(e),usage, file=sys.stderr)
     quit(1)
 
-fbclear(color, device)
+f=fb.framebuffer(device=device)
+s=surface.surface(width=f.width, height=f.height, fg=color, bg=color)
+f.pack(s.rgb())

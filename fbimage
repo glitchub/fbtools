@@ -26,7 +26,6 @@ color="black"
 margin=0
 stretch=False
 device="/dev/fb0"
-debug=False
 
 try:
 
@@ -36,7 +35,6 @@ try:
         elif opt == "-d": device=arg
         elif opt == "-m": margin=int(arg)
         elif opt == "-s": stretch=True
-        elif opt == "-z": debug=True
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args) != 1: raise Exception("Expected a file name (or '-')")
     image = args[0]
@@ -45,4 +43,7 @@ except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-fbimage(image, color=color, device=device, margin=margin, stretch=stretch, debug=debug)
+fb = framebuffer(device, bg=color, fg=color)
+s = surface(fb.width, fb.height)
+s.image(source=image, margin=margin, stretch=stretch)
+fb.pack(s.rgb())
