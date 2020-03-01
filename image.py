@@ -145,7 +145,7 @@ class image():
 
     # overlay image im at specified offset
     def overlay(self, im, x=0, y=0):
-        self.image.composite(im, (x, y), CompositeOperator.OverCompositeOp)
+        self.image.composite(im, Geometry(x, y), CompositeOperator.OverCompositeOp)
 
     # Load an image file and scale/stretch. Format is determined from data,
     # file extent, or leading "FMT:" tag (e.g "PNG:data")
