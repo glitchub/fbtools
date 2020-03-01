@@ -1,4 +1,4 @@
-# Graphic surface using pgmagick, works with python 2 or 3
+# Graphic image using pgmagick, works with python 2 or 3
 
 from __future__ import print_function, division
 import os, sys
@@ -23,13 +23,24 @@ def _to_bytes(s):
     except:
         return bytes(s)
 
-class surface():
-    # create surface of specified size and colors
+class image():
+    # create an image of specified size and color
     width=None
     height=None
     fg=None
     bg=None
-    surface=None
+    image=None
+
+    gravities={ "nw": GravityType.NorthWestGravity,
+                "n":  GravityType.NorthGravity,
+                "ne": GravityType.NorthEastGravity,
+                "w":  GravityType.WestGravity,
+                "c":  GravityType.CenterGravity,
+                "e":  GravityType.EastGravity,
+                "sw": GravityType.SouthWestGravity,
+                "s":  GravityType.SouthGravity,
+                "se": GravityType.SouthEastGravity }
+
     def __init__(
             self,
             width=None, height=None,    # image size
@@ -41,28 +52,28 @@ class surface():
         self.fg = fg
         self.bg = bg
 
-        # Create the surface
-        self.surface = Image(Geometry(width, height), Color(bg))
-        self.surface.fillColor(Color(fg))
-        self.surface.strokeWidth(0)
+        # Create the image
+        self.image = Image(Geometry(width, height), Color(bg))
+        self.image.fillColor(Color(fg))
+        self.image.strokeWidth(0)
 
-    # Draw a border in fg color on edge of the surface
+    # Draw a border in fg color on edge of the image
     def border(
             self,
             pixels # border width in pixels
         ):
         if pixels == 1:
-            self.surface.draw(DrawableLine(0, 0, self.width-1, 0)) # across the top
-            self.surface.draw(DrawableLine(0, 0, 0, self.height-1)) # down the left
-            self.surface.draw(DrawableLine(self.width-1, 0, self.width-1, self.height-1)) # down the right
-            self.surface.draw(DrawableLine(0, self.height-1, self.width-1, self.height-1)) # across the bottom
+            self.image.draw(DrawableLine(0, 0, self.width-1, 0)) # across the top
+            self.image.draw(DrawableLine(0, 0, 0, self.height-1)) # down the left
+            self.image.draw(DrawableLine(self.width-1, 0, self.width-1, self.height-1)) # down the right
+            self.image.draw(DrawableLine(0, self.height-1, self.width-1, self.height-1)) # across the bottom
         elif pixels > 1:
-            self.surface.draw(DrawableRectangle(0, 0, self.width-1, pixels-1)) # across the top
-            self.surface.draw(DrawableRectangle(0, 0, pixels-1, self.height-1)) # down the left
-            self.surface.draw(DrawableRectangle(self.width-pixels, 0, self.width-1, self.height-1)) # down the right
-            self.surface.draw(DrawableRectangle(0, self.height-pixels, self.width-1, self.height-1)) # across the bottom
+            self.image.draw(DrawableRectangle(0, 0, self.width-1, pixels-1)) # across the top
+            self.image.draw(DrawableRectangle(0, 0, pixels-1, self.height-1)) # down the left
+            self.image.draw(DrawableRectangle(self.width-pixels, 0, self.width-1, self.height-1)) # down the right
+            self.image.draw(DrawableRectangle(0, self.height-pixels, self.width-1, self.height-1)) # across the bottom
 
-    # Given filename or list of textlines, write text to surface in fg color
+    # Given filename or list of textlines, write text to image in fg color
     def text(
             self,
             input,              # a filename, or a list of text lines
@@ -87,10 +98,10 @@ class surface():
 
         if constrain is None: contstrain = wrap
 
-        self.surface.font(font)
-        self.surface.fontPointsize(point)
+        self.image.font(font)
+        self.image.fontPointsize(point)
         tm = TypeMetric()
-        self.surface.fontTypeMetrics("M",tm)
+        self.image.fontTypeMetrics("M",tm)
 
         # x and y margins are based on gravity
         if gravity in ("nw","ne","w","e","sw","se"):
@@ -128,40 +139,40 @@ class surface():
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
         dl = DrawableList()
-        dl.append(DrawableGravity({"nw": GravityType.NorthWestGravity,
-                                   "n":  GravityType.NorthGravity,
-                                   "ne": GravityType.NorthEastGravity,
-                                   "w":  GravityType.WestGravity,
-                                   "c":  GravityType.CenterGravity,
-                                   "e":  GravityType.EastGravity,
-                                   "sw": GravityType.SouthWestGravity,
-                                   "s":  GravityType.SouthGravity,
-                                   "se": GravityType.SouthEastGravity}[gravity]))
+        dl.append(DrawableGravity(gravties[gravity]))
         dl.append(DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text))))
-        self.surface.draw(dl)
+        self.image.draw(dl)
 
-    # Load image file onto surface
-    def image(
+    # overlay the given image at specified offset
+    def overlay(i, x=0, x=0):
+        self.image.composite(i, (x, y), CompositeOperator.OverCompositeOp)
+
+    # Load an image file and scale to image, stretch
+    def read(
             self,
-            input,          # a filename, '-' for stdin
-            margin=0,       # pixels to leave around edge of surface
-            stretch=False   # stretch image to fit surface
+            filename,       # a filename, '-' for stdin
+            margin=0,       # pixels to leave around edge of image
+            stretch=False   # stretch image to fit image
         ):
 
-        if input == '-':
+        if filename == '-':
             try: fh = sys.stdin.buffer # python 3
             except: fh = sys.stdin     # python 2
         else:
-            fh = open(input, mode='rb')
+            fh = open(filename, mode='rb')
 
         i=Image(Blob(fh.read()))
         g=Geometry(self.width-(margin*2), self.height-(margin*2))
         if stretch: g.aspect(True)
         i.scale(g)
-        self.surface.composite(i, GravityType.CenterGravity, CompositeOperator.OverCompositeOp)
+        self.overlay(i)
 
-    # Return surface raw rgb data (suitable for fb.pack())
+    # Write the image to a file or stdout, the format is determined from file extent or leading "FMT:". For example PNG:somefile or JPG:-
+    def write(self, filename):
+        self.image.write(filename)
+
+    # Return image raw rgb data (suitable for fb.pack())
     def rgb(self):
         blob=Blob()
-        self.surface.write(blob,"RGB",8)
+        self.image.write(blob,"RGB",8)
         return blob.data

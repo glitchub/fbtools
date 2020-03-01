@@ -2,8 +2,7 @@
 # Write image to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import sys, getopt
-from fb import fbimage
+import sys, getopt, image, fb
 
 usage="""
 Usage:
@@ -37,13 +36,13 @@ try:
         elif opt == "-s": stretch=True
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    image = args[0]
+    name = args[0]
 
 except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-fb = framebuffer(device, bg=color, fg=color)
-s = surface(fb.width, fb.height)
-s.image(source=image, margin=margin, stretch=stretch)
-fb.pack(s.rgb())
+f = fb.framebuffer(device)
+i = image.image(f.width, f.height, bg=color, fg=color)
+i.read(filename=name, margin=margin, stretch=stretch)
+f.pack(i.rgb())

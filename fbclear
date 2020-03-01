@@ -2,7 +2,7 @@
 # Clear frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import os, sys, getopt, fb, surface
+import os, sys, getopt, fb, image
 
 usage="""
 Usage:
@@ -35,5 +35,5 @@ except Exception as e:
     quit(1)
 
 f=fb.framebuffer(device=device)
-s=surface.surface(width=f.width, height=f.height, fg=color, bg=color)
-f.pack(s.rgb())
+i=image.image(width=f.width, height=f.height, fg=color, bg=color)
+f.pack(i.rgb())

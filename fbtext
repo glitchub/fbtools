@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import os, sys, getopt
-import fb, surface
+import fb, image
 
 usage = """
 Usage:
@@ -81,9 +81,9 @@ except Exception as e:
     quit(1)
 
 f = fb.framebuffer(device)
-s = surface.surface(width=f.width, height=f.height, fg=fg, bg=bg)
+i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
 if border:
-    s.border(border)
+    i.border(border)
     margin += border
-s.text(input, gravity=gravity, margin=margin, wrap=wrap, constrain=constrain, point=point, font=font)
-f.pack(s.rgb())
+i.text(input, gravity=gravity, margin=margin, wrap=wrap, constrain=constrain, point=point, font=font)
+f.pack(i.rgb())
