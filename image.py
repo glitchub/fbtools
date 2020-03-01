@@ -54,7 +54,7 @@ class image():
         self.bg = bg
 
         if rgb:
-            self.image = Image(Geometry(width, height),StorageType.CharPixel, rgb)
+            self.image = Image(Blob(rgb), Geometry(width, height), 8, "RGB")
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
