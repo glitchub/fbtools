@@ -139,12 +139,12 @@ class image():
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
         dl = DrawableList()
-        dl.append(DrawableGravity(gravties[gravity]))
+        dl.append(DrawableGravity(self.gravities[gravity]))
         dl.append(DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text))))
         self.image.draw(dl)
 
     # overlay the given image at specified offset
-    def overlay(i, x=0, y=0):
+    def overlay(self, i, x=0, y=0):
         self.image.composite(i, (x, y), CompositeOperator.OverCompositeOp)
 
     # Load an image file and scale to image, stretch
