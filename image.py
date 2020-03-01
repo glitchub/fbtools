@@ -58,24 +58,21 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
-        self.image.fillColor(Color(fg))
-        self.image.strokeWidth(0)
+    # set stroke width, color, and fillecolor
+    def stroke(self, width, color=None, fill=None):
+        if color is None: color=self.fg
+        if file is None: fill=color
+        self.image.strokeWidth(width)
+        self.image.strokeColor(Color(color))
+        self.image.fillColor(Color(fill))
 
     # Draw a border in fg color on edge of the image
     def border(
             self,
             pixels # border width in pixels
         ):
-        if pixels == 1:
-            self.image.draw(DrawableLine(0, 0, self.width-1, 0)) # across the top
-            self.image.draw(DrawableLine(0, 0, 0, self.height-1)) # down the left
-            self.image.draw(DrawableLine(self.width-1, 0, self.width-1, self.height-1)) # down the right
-            self.image.draw(DrawableLine(0, self.height-1, self.width-1, self.height-1)) # across the bottom
-        elif pixels > 1:
-            self.image.draw(DrawableRectangle(0, 0, self.width-1, pixels-1)) # across the top
-            self.image.draw(DrawableRectangle(0, 0, pixels-1, self.height-1)) # down the left
-            self.image.draw(DrawableRectangle(self.width-pixels, 0, self.width-1, self.height-1)) # down the right
-            self.image.draw(DrawableRectangle(0, self.height-pixels, self.width-1, self.height-1)) # across the bottom
+        self.stroke(pixels, fill="transparent")
+        self.image.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
@@ -142,6 +139,7 @@ class image():
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
+        self.stroke(1)
         dl = DrawableList()
         dl.append(DrawableGravity(self.gravities[gravity]))
         dl.append(DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text))))
