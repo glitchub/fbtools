@@ -144,7 +144,7 @@ class image():
         self.image.draw(dl)
 
     # overlay the given image at specified offset
-    def overlay(i, x=0, x=0):
+    def overlay(i, x=0, y=0):
         self.image.composite(i, (x, y), CompositeOperator.OverCompositeOp)
 
     # Load an image file and scale to image, stretch
