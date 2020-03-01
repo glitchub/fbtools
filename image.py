@@ -144,8 +144,12 @@ class image():
         self.image.draw(dl)
 
     # overlay image im at specified offset
-    def overlay(self, im, x=0, y=0):
-        self.image.composite(im, Geometry(x, y), CompositeOperator.OverCompositeOp)
+    def overlay(self, im, pos=(0,0)):
+        if type(pos) in [list, tuple]:
+            pos=Geometry(pos)
+        else:
+            pos=self.gravities[pos]
+        self.image.composite(im, pos, CompositeOperator.OverCompositeOp)
 
     # Load an image file and scale/stretch. Format is determined from data,
     # file extent, or leading "FMT:" tag (e.g "PNG:data")
@@ -166,7 +170,7 @@ class image():
         g=Geometry(self.width-(margin*2), self.height-(margin*2))
         if stretch: g.aspect(True)
         i.scale(g)
-        self.overlay(i)
+        self.overlay(i,'c')
 
     # Write the image to a file or stdout. Format is determined from file
     # extent or leading "FMT:" tag (e.g "PNG:data").
