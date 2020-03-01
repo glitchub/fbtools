@@ -79,10 +79,10 @@ class image():
             input,              # a filename, or a list of text lines
             gravity = 'nw',     # one of nw, n, ne, w, c, e, sw, s, s.
             margin = 10,        # text margin
-            wrap = False,       # wrap long lines to keep in margin
-            constrain = True,   # clip text outside of margins
-            point = 20,         # default pointsize
-            font = __font__     # default font
+            wrap = False,       # wrap lines at right margin
+            clip = None,        # clip text at margins
+            point = 20,         # pointsize
+            font = __font__     # font
         ):
         if type(input) is list:
             # clean up the list
@@ -96,7 +96,7 @@ class image():
             text = [ s.expandtabs() for s in _to_str(fh.read()).splitlines() ]
             fh.close()
 
-        if constrain is None: contstrain = wrap
+        if clip is None: clip = wrap
 
         self.image.font(font)
         self.image.fontPointsize(point)
@@ -134,7 +134,7 @@ class image():
                 yield t
             text = [w for t in text for w in wrapt(t)]
 
-        if constrain:
+        if clip:
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
@@ -143,11 +143,12 @@ class image():
         dl.append(DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text))))
         self.image.draw(dl)
 
-    # overlay the given image at specified offset
-    def overlay(self, i, x=0, y=0):
-        self.image.composite(i, (x, y), CompositeOperator.OverCompositeOp)
+    # overlay image im at specified offset
+    def overlay(self, im, x=0, y=0):
+        self.image.composite(im, (x, y), CompositeOperator.OverCompositeOp)
 
-    # Load an image file and scale to image, stretch
+    # Load an image file and scale/stretch. Format is determined from data,
+    # file extent, or leading "FMT:" tag (e.g "PNG:data")
     def read(
             self,
             filename,       # a filename, '-' for stdin
@@ -167,11 +168,12 @@ class image():
         i.scale(g)
         self.overlay(i)
 
-    # Write the image to a file or stdout, the format is determined from file extent or leading "FMT:". For example PNG:somefile or JPG:-
+    # Write the image to a file or stdout. Format is determined from file
+    # extent or leading "FMT:" tag (e.g "PNG:data").
     def write(self, filename):
         self.image.write(filename)
 
-    # Return image raw rgb data (suitable for fb.pack())
+    # Return image raw RGB data)
     def rgb(self):
         blob=Blob()
         self.image.write(blob,"RGB",8)

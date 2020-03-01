@@ -21,8 +21,8 @@ Options are:
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
     -m                      - text margin in pixels, default is "10"
     -s point                - font point size, default is "20"
-    -w                      - wrap text to page width
-    -x                      - constrain text to page borders
+    -w                      - wrap text at right margin
+    -x                      - clip text at right/bottom margins
 
 Font names "m" and "p" will select built-in monospaced or proportional fonts.
 The default font is "m".
@@ -44,7 +44,7 @@ device = "/dev/fb0"
 margin = 10
 border = 0
 wrap = False
-constrain = False
+clip = False
 
 try:
 
@@ -60,14 +60,14 @@ try:
         elif opt == "-f": font = arg
         elif opt == "-g": gravity = arg.lower()
         elif opt == "-m": margin = int(arg)
-        elif opt == "-r": reference = arg
+        elif opt == "-r": pass # legacy
         elif opt == "-s": point = int(arg)
         elif opt == "-w": wrap = True
-        elif opt == "-x": constrain = True
-        elif opt == "-y": constrain = True # legacy
-        elif opt == "-z": debug = True
+        elif opt == "-x": clip = True
+        elif opt == "-y": pass # legacy
         else: raise Exception("Invalid option '%s'" % opt)
 
+    if bg == '': bg = "black"
     gravity = {"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
     if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
 
@@ -85,5 +85,5 @@ i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
 if border:
     i.border(border)
     margin += border
-i.text(input, gravity=gravity, margin=margin, wrap=wrap, constrain=constrain, point=point, font=font)
+i.text(input, gravity=gravity, margin=margin, wrap=wrap, clip=clip, point=point, font=font)
 f.pack(i.rgb())
