@@ -61,7 +61,7 @@ class image():
     # set stroke width, color, and fillecolor
     def stroke(self, width, color=None, fill=None):
         if color is None: color=self.fg
-        if file is None: fill=color
+        if fill is None: fill=color
         self.image.strokeWidth(width)
         self.image.strokeColor(Color(color))
         self.image.fillColor(Color(fill))
