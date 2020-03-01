@@ -16,6 +16,7 @@ Options are:
     -c color                - background color, default is "black"
     -d device               - framebuffer device, default is "/dev/fb0"
     -m width                - margin width, default is "0" (no margin)
+    -o                      - overlay existing framebuffer image
     -s                      - stretch the image to fit, default is scale to fit.
 
 If image.file is "-" then read the image from stdin.
@@ -25,15 +26,17 @@ color="black"
 margin=0
 stretch=False
 device="/dev/fb0"
+overlay=False
 
 try:
 
-    opts, args = getopt.getopt(sys.argv[1:],"c:d:sm:z")
+    opts, args = getopt.getopt(sys.argv[1:],"c:d:sm:o")
     for opt, arg in opts:
         if   opt == "-c": color=arg.lower()
         elif opt == "-d": device=arg
         elif opt == "-m": margin=int(arg)
         elif opt == "-s": stretch=True
+        elif opt == "-o": overlay=True
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args) != 1: raise Exception("Expected a file name (or '-')")
     name = args[0]
@@ -43,6 +46,6 @@ except Exception as e:
     quit(1)
 
 f = fb.framebuffer(device)
-i = image.image(f.width, f.height, bg=color, fg=color)
+i = image.image(f.width, f.height, bg=color, fg=color, rgb=f.unpack() if overlay else None)
 i.read(filename=name, margin=margin, stretch=stretch)
 f.pack(i.rgb())

@@ -44,7 +44,8 @@ class image():
     def __init__(
             self,
             width=None, height=None,    # image size
-            bg="black", fg="white"      # default colors
+            bg="black", fg="white",     # default colors
+            rgb=None                    # init with rgb data (must be the correct size)
         ):
 
         self.width = width
@@ -52,8 +53,11 @@ class image():
         self.fg = fg
         self.bg = bg
 
-        # Create the image
-        self.image = Image(Geometry(width, height), Color(bg))
+        if rgb:
+            self.image = Image(Geometry(width, height),StorageType.CharPixel, rgb)
+        else:
+            self.image = Image(Geometry(width, height), Color(bg))
+
         self.image.fillColor(Color(fg))
         self.image.strokeWidth(0)
 
