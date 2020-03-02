@@ -10,6 +10,17 @@ __here__ = os.path.dirname(__file__) or '.'
 # default font is monospaced
 __font__ = __here__ + "/WenQuanYiMicroHeiMono.ttf"
 
+# dict of gravities
+gravities={ "nw": GravityType.NorthWestGravity,
+            "n":  GravityType.NorthGravity,
+            "ne": GravityType.NorthEastGravity,
+            "w":  GravityType.WestGravity,
+            "c":  GravityType.CenterGravity,
+            "e":  GravityType.EastGravity,
+            "sw": GravityType.SouthWestGravity,
+            "s":  GravityType.SouthGravity,
+            "se": GravityType.SouthEastGravity }
+
 # python version-agnostic convert object to str or bytes
 def _to_str(s):
     try:
@@ -41,16 +52,7 @@ class draw():
         self.dl.append(DrawableFillColor(Color(color)))
 
     def gravity(self, gravity):
-        self.dl.append(DrawableGravity(
-            { "nw": GravityType.NorthWestGravity,
-              "n":  GravityType.NorthGravity,
-              "ne": GravityType.NorthEastGravity,
-              "w":  GravityType.WestGravity,
-              "c":  GravityType.CenterGravity,
-              "e":  GravityType.EastGravity,
-              "sw": GravityType.SouthWestGravity,
-              "s":  GravityType.SouthGravity,
-              "se": GravityType.SouthEastGravity }[gravity]))
+        self.dl.append(DrawableGravity(gravities[gravity]))
 
     def rectangle(self, left, top, width, height):
         self.dl.append(DrawableRectangle(left, top, left+width-1, top+height-1))
@@ -59,16 +61,6 @@ class draw():
         self.dl.append(DrawableText(left, top, _to_bytes(text)))
 
 class image():
-    # create an image of specified size and color
-    gravities={ "nw": GravityType.NorthWestGravity,
-                "n":  GravityType.NorthGravity,
-                "ne": GravityType.NorthEastGravity,
-                "w":  GravityType.WestGravity,
-                "c":  GravityType.CenterGravity,
-                "e":  GravityType.EastGravity,
-                "sw": GravityType.SouthWestGravity,
-                "s":  GravityType.SouthGravity,
-                "se": GravityType.SouthEastGravity }
 
     def __init__(
             self,
@@ -90,9 +82,9 @@ class image():
     # overlay image i at specified offset
     def overlay(self, i, pos=(0,0)):
         if type(pos) in [list, tuple]:
-            pos=Geometry(pos)
+            pos=Geometry(*pos)
         else:
-            pos=self.gravities[pos]
+            pos=gravities[pos]
         self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
 
     # Draw a border in fg color on edge of the image
@@ -138,6 +130,14 @@ class image():
         tm = TypeMetric()
         i.fontTypeMetrics("M",tm)
 
+        #  y offset is based on gravity
+        if gravity in ("nw","n","ne"):
+            yoffset = tm.ascent()
+        elif gravity in ("sw","s","se"):
+            yoffset = -tm.descent()
+        else:
+            yoffset=0
+
         maxcols = int(width // tm.textWidth())
         maxlines = int(height // (tm.textHeight()+1))
 
@@ -164,7 +164,7 @@ class image():
         d.stroke(0)
         d.fill(self.fg)
         d.gravity(gravity)
-        d.text(0, 0, '\n'.join(text))
+        d.text(0, yoffset, '\n'.join(text))
         d.draw(i)
 
         self.image.overlay(i, pos=(left, top))
