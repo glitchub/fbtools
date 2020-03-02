@@ -87,6 +87,14 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
+    # overlay image i at specified offset
+    def overlay(self, i, pos=(0,0)):
+        if type(pos) in [list, tuple]:
+            pos=Geometry(pos)
+        else:
+            pos=self.gravities[pos]
+        self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
+
     # Draw a border in fg color on edge of the image
     def border(self, width):
         d = draw()
@@ -99,13 +107,14 @@ class image():
     # Given filename or list of textlines, write text to image in fg color
     def text(
             self,
-            input,              # a filename, or a list of text lines
-            gravity = 'nw',     # one of nw, n, ne, w, c, e, sw, s, s.
-            margin = 10,        # text margin
-            wrap = False,       # wrap lines at right margin
-            clip = None,        # clip text at margins
-            point = 20,         # pointsize
-            font = __font__     # font
+            input,                   # a filename, or a list of text lines
+            height=None, width=None, # size of text frame
+            left=0, top=0,           # offset on image
+            gravity = 'nw',          # one of nw, n, ne, w, c, e, sw, s, s.
+            wrap = False,            # wrap lines at right margin
+            clip = None,             # clip text at margins
+            point = 20,              # pointsize
+            font = __font__          # font
         ):
         if type(input) is list:
             # clean up the list
@@ -120,27 +129,17 @@ class image():
             fh.close()
 
         if clip is None: clip = wrap
+        if height is None: height is self.height
+        if width is None: width is self.width
 
-        self.image.font(font)
-        self.image.fontPointsize(point)
+        i=Image(Geometry(width, height), Color("transparent"))
+        i.font(font)
+        i.fontPointsize(point)
         tm = TypeMetric()
-        self.image.fontTypeMetrics("M",tm)
+        i.fontTypeMetrics("M",tm)
 
-        # x and y margins are based on gravity
-        if gravity in ("nw","ne","w","e","sw","se"):
-            xoffset = margin
-        else:
-            xoffset = 0
-
-        if gravity in ("nw","n","ne"):
-            yoffset = margin+tm.ascent()
-        elif gravity in ("sw","s","se"):
-            yoffset = margin-tm.descent()
-        else:
-            yoffset = 0
-
-        maxcols = int((self.width-(margin*2)) // tm.textWidth())
-        maxlines = int((self.height-(margin*2)) // (tm.textHeight()+1))
+        maxcols = int(width // tm.textWidth())
+        maxlines = int(height // (tm.textHeight()+1))
 
         if wrap:
             def wrapt(t):
@@ -165,16 +164,10 @@ class image():
         d.stroke(0)
         d.fill(self.fg)
         d.gravity(gravity)
-        d.text(xoffset, yoffset, '\n'.join(text))
-        d.draw(self.image)
+        d.text(0, 0, '\n'.join(text))
+        d.draw(i)
 
-    # overlay image i at specified offset
-    def overlay(self, i, pos=(0,0)):
-        if type(pos) in [list, tuple]:
-            pos=Geometry(pos)
-        else:
-            pos=self.gravities[pos]
-        self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
+        self.image.overlay(i, pos=(left, top))
 
     # Load an image file and scale/stretch.
     def read(

@@ -85,5 +85,5 @@ i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
 if border:
     i.border(border)
     margin += border
-i.text(input, gravity=gravity, margin=margin, wrap=wrap, clip=clip, point=point, font=font)
+i.text(input, left=margin, top=margin, width=i.width-(margin*2), height=i.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
 f.pack(i.rgb())
