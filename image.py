@@ -167,7 +167,7 @@ class image():
         d.text(0, yoffset, '\n'.join(text))
         d.draw(i)
 
-        self.image.overlay(i, pos=(left, top))
+        self.overlay(i, (left, top))
 
     # Load an image file and scale/stretch.
     def read(
