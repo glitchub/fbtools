@@ -25,12 +25,6 @@ def _to_bytes(s):
 
 class image():
     # create an image of specified size and color
-    width=None
-    height=None
-    fg=None
-    bg=None
-    image=None
-
     gravities={ "nw": GravityType.NorthWestGravity,
                 "n":  GravityType.NorthGravity,
                 "ne": GravityType.NorthEastGravity,
@@ -58,21 +52,20 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
-    # set stroke width, color, and fillecolor
-    def stroke(self, width, color=None, fill=None):
-        if color is None: color=self.fg
-        if fill is None: fill=color
-        self.image.strokeWidth(width)
-        self.image.strokeColor(Color(color))
-        self.image.fillColor(Color(fill))
+    def draw(self, drawlist):
+        dl = DrawableList()
+        for d in drawlist: dl.append(d)
+        self.image.draw(dl)
+
 
     # Draw a border in fg color on edge of the image
-    def border(
-            self,
-            pixels # border width in pixels
-        ):
-        self.stroke(pixels, fill="transparent")
-        self.image.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
+    def border(self, width):
+        self.draw([
+            DrawableStrokeWidth(width),
+            DrawableStrokeColor(Color(self.fg)),
+            DrawableFillColor(Color("transparent")),
+            DrawableRectangle(0, 0, self.width-1, self.height-1)
+        ])
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
@@ -139,25 +132,25 @@ class image():
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
-        self.stroke(1)
-        dl = DrawableList()
-        dl.append(DrawableGravity(self.gravities[gravity]))
-        dl.append(DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text))))
-        self.image.draw(dl)
+        self.draw([
+            DrawableStrokeWidth(0),
+            DrawableFillColor(Color(self.fg)),
+            DrawableGravity(self.gravities[gravity]),
+            DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text)))
+        ])
 
-    # overlay image im at specified offset
-    def overlay(self, im, pos=(0,0)):
+    # overlay image i at specified offset
+    def overlay(self, i, pos=(0,0)):
         if type(pos) in [list, tuple]:
             pos=Geometry(pos)
         else:
             pos=self.gravities[pos]
-        self.image.composite(im, pos, CompositeOperator.OverCompositeOp)
+        self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
 
-    # Load an image file and scale/stretch. Format is determined from data,
-    # file extent, or leading "FMT:" tag (e.g "PNG:data")
+    # Load an image file and scale/stretch.
     def read(
             self,
-            filename,       # a filename, '-' for stdin
+            filename,       # a filename, '-' for stdin, prefix with FMT: to force format
             margin=0,       # pixels to leave around edge of image
             stretch=False   # stretch image to fit image
         ):
@@ -179,8 +172,8 @@ class image():
     def write(self, filename):
         self.image.write(filename)
 
-    # Return image raw RGB data)
+    # Return image raw RGB data
     def rgb(self):
         blob=Blob()
-        self.image.write(blob,"RGB",8)
+        self.image.write(blob, "RGB", 8)
         return blob.data
