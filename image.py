@@ -23,6 +23,41 @@ def _to_bytes(s):
     except:
         return bytes(s)
 
+class draw():
+    def __init__(self):
+        self.dl = DrawableList()
+
+    def draw(self, image):
+        image.draw(self.dl)
+        self.dl=DrawableList()
+
+    def stroke(self, width):
+        self.dl.append(DrawableStrokeWidth(width))
+
+    def color(self, color):
+        self.dl.append(DrawableStrokeColor(Color(color)))
+
+    def fill(self, color):
+        self.dl.append(DrawableFillColor(Color(color)))
+
+    def gravity(self, gravity):
+        self.dl.append(DrawableGravity(
+            { "nw": GravityType.NorthWestGravity,
+              "n":  GravityType.NorthGravity,
+              "ne": GravityType.NorthEastGravity,
+              "w":  GravityType.WestGravity,
+              "c":  GravityType.CenterGravity,
+              "e":  GravityType.EastGravity,
+              "sw": GravityType.SouthWestGravity,
+              "s":  GravityType.SouthGravity,
+              "se": GravityType.SouthEastGravity }[gravity]))
+
+    def rectangle(self, left, top, width, height):
+        self.dl.append(DrawableRectangle(left, top, left+width-1, top+height-1))
+
+    def text(self, left, top, text):
+        self.dl.append(DrawableText(left, top, _to_bytes(text)))
+
 class image():
     # create an image of specified size and color
     gravities={ "nw": GravityType.NorthWestGravity,
@@ -52,20 +87,14 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
-    def draw(self, drawlist):
-        dl = DrawableList()
-        for d in drawlist: dl.append(d)
-        self.image.draw(dl)
-
-
     # Draw a border in fg color on edge of the image
     def border(self, width):
-        self.draw([
-            DrawableStrokeWidth(width),
-            DrawableStrokeColor(Color(self.fg)),
-            DrawableFillColor(Color("transparent")),
-            DrawableRectangle(0, 0, self.width-1, self.height-1)
-        ])
+        d = draw()
+        d.stroke(width)
+        d.color(self.fg)
+        d.fill("transparent")
+        d.rectangle(0, 0, self.width, self.height)
+        d.draw(self.image)
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
@@ -132,12 +161,12 @@ class image():
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
-        self.draw([
-            DrawableStrokeWidth(0),
-            DrawableFillColor(Color(self.fg)),
-            DrawableGravity(self.gravities[gravity]),
-            DrawableText(xoffset, yoffset, _to_bytes('\n'.join(text)))
-        ])
+        d = draw()
+        d.stroke(0)
+        d.fill(self.fg)
+        d.gravity(gravity)
+        d.text(xoffset, yoffset, '\n'.join(text))
+        d.draw(self.image)
 
     # overlay image i at specified offset
     def overlay(self, i, pos=(0,0)):
