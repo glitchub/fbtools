@@ -77,38 +77,47 @@ class image():
     # Given filename or list of textlines, write text to image in fg color
     def text(
             self,
-            input,                   # a filename, or a list of text lines
-            width=None, height=None, # size of text frame
+            text,                    # a string or list of strings (one element per line)
             left=0, top=0,           # offset on image
+            width=None, height=None, # size of text frame
+            box=None,                # if defined, specified ulhc and lrhc coords, overrides top, left, width, height
             gravity = 'nw',          # one of nw, n, ne, w, c, e, sw, s, s.
             wrap = False,            # wrap lines at right margin
             clip = None,             # clip text at margins
             point = 20,              # pointsize
             font = __font__          # font
         ):
-        if type(input) is list:
-            # clean up the list
-            text = [_to_str(s).expandtabs() for s in input]
-        else:
-            if input == '-':
-                try: fh = sys.stdin.buffer # python 3
-                except: fh = sys.stdin     # python 2
-            else:
-                fh = open(input, mode='rb')
-            text = [ s.expandtabs() for s in _to_str(fh.read()).splitlines() ]
-            fh.close()
+
+        if type(text) is str: test=[text]
+        text = [s.expandtabs() for s in text]
 
         if clip is None: clip = wrap
-        if height is None: height is self.height
-        if width is None: width is self.width
 
+
+        if box:
+            # box is (left, top, right, bottom)
+            left = box[0]
+            top = box[1]
+            width = (box[2]-box[0])+1
+            height = (box[3]-box[1])+1
+        else:
+            if height is None: height is self.height
+            if width is None: width is self.width
+
+        # keep it real
+        left = int(left)
+        top = int(top)
+        height = int(height)
+        width = int(width)
+
+        # write text to a layer
         l = self.layer(width, height)
         l.font(font)
         l.fontPointsize(point)
         tm = TypeMetric()
         l.fontTypeMetrics("M",tm)
 
-        #  y offset is based on gravity
+        # the y offset is based on font and gravity
         if gravity in ("nw","n","ne"): yoffset = tm.ascent()
         elif gravity in ("sw","s","se"): yoffset = -tm.descent()
         else: yoffset=0
@@ -117,6 +126,7 @@ class image():
         maxlines = int(height // (tm.textHeight()+1))
 
         if wrap:
+            # wrap text to fit... this fails for characters wider than 'M'
             def wrapt(t):
                 t = t.rstrip(' ')
                 while len(t) > maxcols:

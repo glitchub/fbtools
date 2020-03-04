@@ -50,9 +50,6 @@ try:
 
     opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
 
-    if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    input = args[0]
-
     for opt, arg in opts:
         if   opt == "-b": border = int(arg)
         elif opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
@@ -68,7 +65,6 @@ try:
         else: raise Exception("Invalid option '%s'" % opt)
 
     if bg == '': bg = "black"
-    gravity = {"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
     if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
 
     if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
@@ -80,10 +76,19 @@ except Exception as e:
     print (str(e),"\n",usage,file = sys.stderr)
     quit(1)
 
+# open file or stdin
+if not args or args[0] == '-':
+    fh = sys.stdin.buffer
+else:
+    fh = open(args[0], mode='rb')
+# get list of lines
+text = fh.read.splitlines()
+fh.close()
+
 f = fb.framebuffer(device)
 i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
 if border:
     i.border(border)
     margin += border
-i.text(input, left=margin, top=margin, width=i.width-(margin*2), height=i.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
+i.text(text, left=margin, top=margin, width=i.width-(margin*2), height=i.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
 f.pack(i.rgb())
