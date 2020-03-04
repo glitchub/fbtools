@@ -65,7 +65,6 @@ try:
         else: raise Exception("Invalid option '%s'" % opt)
 
     if bg == '': bg = "black"
-    if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
 
     if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
     elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
@@ -77,11 +76,11 @@ except Exception as e:
     quit(1)
 
 if not args or args[0] == '-':
-    # read text from stdin
+    # read text from stdin (note it's in binary mode)
     text = str(sys.stdin.buffer.read(),'utf8')
 else:
     # read text from file
-    with open(args[0]) as fh: text=str(fh.read(),'utf8')
+    with open(args[0]) as fh: text=fh.read()
 
 f = fb.framebuffer(device)
 i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
