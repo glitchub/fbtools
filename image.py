@@ -1,5 +1,6 @@
 # Graphic image using pgmagick, works with python 2 or 3
-# See https://www.imagemagick.org/Magick++/Image++.html
+# See https://www.imagemagick.org/Magick++/Image++.html for C++ API which is
+# directly exposed by the python module.
 
 from __future__ import print_function, division
 import os, sys
@@ -58,10 +59,10 @@ class image():
     def layer(self, width=None, height=None):
         return Image(Geometry(width or self.width, height or self.height), Color("transparent"))
 
-    # overlay image l, at specified offset or with specified gravity
+    # overlay image with l at specified offset or with specified gravity
     def overlay(self, l, pos=(0,0)):
         if type(pos) in [list, tuple]:
-            pos=Geometry(0,0,pos[0],pos[1])
+            pos=Geometry(0,0,pos[0],pos[1]) # see http://www.graphicsmagick.org/Magick++/Geometry.html
         else:
             pos=gravities[pos]
         self.image.composite(l, pos, CompositeOperator.OverCompositeOp)
@@ -103,7 +104,7 @@ class image():
         if height is None: height is self.height
         if width is None: width is self.width
 
-        l=self.layer()
+        l=self.layer(height, width)
         l.strokeWidth(0)
         l.fillColor(self.fg)
         l.font(font)
