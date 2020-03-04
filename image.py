@@ -82,7 +82,7 @@ class image():
     # overlay image i at specified offset
     def overlay(self, i, pos=(0,0)):
         if type(pos) in [list, tuple]:
-            pos=Geometry(*pos)
+            pos=Geometry(0,0,pos[0],pos[1])
         else:
             pos=gravities[pos]
         self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
