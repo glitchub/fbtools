@@ -69,12 +69,10 @@ class image():
 
     # Draw a border in fg color on edge of the image
     def border(self, width):
-        l = self.layer()
-        l.strokeWidth(width)
-        l.strokeColor(self.fg)
-        l.fillColor("transparent")
-        l.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
-        self.overlay(l)
+        self.image.strokeWidth(width)
+        self.image.strokeColor(self.fg)
+        self.image.fillColor("transparent")
+        self.image.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
