@@ -73,14 +73,14 @@ class image():
         l.strokeWidth(width)
         l.strokeColor(self.fg)
         l.fillColor("transparent")
-        l.draw(DrawableRectangle(0, 0, self.width, self.height))
+        l.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
         self.overlay(l)
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
             self,
             input,                   # a filename, or a list of text lines
-            height=None, width=None, # size of text frame
+            width=None, height=None, # size of text frame
             left=0, top=0,           # offset on image
             gravity = 'nw',          # one of nw, n, ne, w, c, e, sw, s, s.
             wrap = False,            # wrap lines at right margin
@@ -104,9 +104,7 @@ class image():
         if height is None: height is self.height
         if width is None: width is self.width
 
-        l=self.layer(height, width)
-        l.strokeWidth(0)
-        l.fillColor(self.fg)
+        l = self.layer(width, height)
         l.font(font)
         l.fontPointsize(point)
         tm = TypeMetric()
@@ -141,6 +139,8 @@ class image():
 
         if text:
             # If text remains, write it to the layer with gravity
+            l.strokeWidth(0)
+            l.fillColor(self.fg)
             # XXX can this be done with Image.annotate()?
             d = DrawableList()
             d.append(DrawableGravity(gravities[gravity]))
