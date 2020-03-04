@@ -79,22 +79,26 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
-    # overlay image i at specified offset
-    def overlay(self, i, pos=(0,0)):
+    # create transparent layer for subsequent overlay
+    def layer(self, width=None, height=None):
+        return Image(Geometry(width or self.width, height or self.height), Color("transparent"))
+
+    # overlay image l, at specified offset or with specified gravity
+    def overlay(self, l, pos=(0,0)):
         if type(pos) in [list, tuple]:
             pos=Geometry(0,0,pos[0],pos[1])
         else:
             pos=gravities[pos]
-        self.image.composite(i, pos, CompositeOperator.OverCompositeOp)
+        self.image.composite(l, pos, CompositeOperator.OverCompositeOp)
 
     # Draw a border in fg color on edge of the image
     def border(self, width):
-        d = draw()
-        d.stroke(width)
-        d.color(self.fg)
-        d.fill("transparent")
-        d.rectangle(0, 0, self.width, self.height)
-        d.draw(self.image)
+        l = self.layer()
+        l.stroke_width(width)
+        l.stroke_color(self.fg)
+        l.fill_color("transparent")
+        l.draw(DrawableRectangle(0, 0, self.width, self.height))
+        self.overlay(l)
 
     # Given filename or list of textlines, write text to image in fg color
     def text(
@@ -124,11 +128,11 @@ class image():
         if height is None: height is self.height
         if width is None: width is self.width
 
-        i=Image(Geometry(width, height), Color("transparent"))
-        i.font(font)
-        i.fontPointsize(point)
+        l=self.layer()
+        l.font(font)
+        l.fontPointsize(point)
         tm = TypeMetric()
-        i.fontTypeMetrics("M",tm)
+        l.fontTypeMetrics("M",tm)
 
         #  y offset is based on gravity
         if gravity in ("nw","n","ne"):
@@ -160,14 +164,15 @@ class image():
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
+        l.stroke_width(0)
+        l.fill_color(self.fg)
+
         d = draw()
-        d.stroke(0)
-        d.fill(self.fg)
         d.gravity(gravity)
         d.text(0, yoffset, '\n'.join(text))
-        d.draw(i)
+        d.draw(l)
 
-        self.overlay(i, (left, top))
+        self.overlay(l, (left, top))
 
     # Load an image file and scale/stretch.
     def read(
@@ -183,11 +188,11 @@ class image():
         else:
             fh = open(filename, mode='rb')
 
-        i=Image(Blob(fh.read()))
+        l=Image(Blob(fh.read()))
         g=Geometry(self.width-(margin*2), self.height-(margin*2))
         if stretch: g.aspect(True)
-        i.scale(g)
-        self.overlay(i,'c')
+        l.scale(g)
+        self.overlay(l,'c')
 
     # Write the image to a file or stdout. Format is determined from file
     # extent or leading "FMT:" tag (e.g "PNG:data").
