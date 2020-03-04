@@ -76,14 +76,12 @@ except Exception as e:
     print (str(e),"\n",usage,file = sys.stderr)
     quit(1)
 
-# open file or stdin
 if not args or args[0] == '-':
-    fh = sys.stdin.buffer
+    # read text from stdin
+    text = str(sys.stdin.buffer.read(),'utf8')
 else:
-    fh = open(args[0], mode='rb')
-# get list of lines
-text = fh.read.splitlines()
-fh.close()
+    # read text from file
+    with open(args[0]) as fh: text=str(fh.read(),'utf8')
 
 f = fb.framebuffer(device)
 i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)

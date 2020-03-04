@@ -77,7 +77,7 @@ class image():
     # Given filename or list of textlines, write text to image in fg color
     def text(
             self,
-            text,                    # a string or list of strings (one element per line)
+            text,                    # text to display, can contain tabs and linefeeds.
             left=0, top=0,           # offset on image
             width=None, height=None, # size of text frame
             box=None,                # if defined, specified ulhc and lrhc coords, overrides top, left, width, height
@@ -88,11 +88,10 @@ class image():
             font = __font__          # font
         ):
 
-        if type(text) is str: test=[text]
-        text = [s.expandtabs() for s in text]
+        # convert text to list of lines
+        text=[s.expandtabs() for s in text.splitlines()]
 
         if clip is None: clip = wrap
-
 
         if box:
             # box is (left, top, right, bottom)
