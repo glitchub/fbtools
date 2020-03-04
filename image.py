@@ -74,24 +74,22 @@ class image():
         self.image.fillColor("transparent")
         self.image.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
 
-    # Given filename or list of textlines, write text to image in fg color
+    # Write text to image
     def text(
             self,
-            text,                    # text to display, can contain tabs and linefeeds.
-            left=0, top=0,           # offset on image
-            width=None, height=None, # size of text frame
-            box=None,                # if defined, specified ulhc and lrhc coords, overrides top, left, width, height
-            gravity = 'nw',          # one of nw, n, ne, w, c, e, sw, s, s.
-            wrap = False,            # wrap lines at right margin
-            clip = None,             # clip text at margins
+            text,                    # text to be written, may contain tabs and linefeeds.
+            left=0, top=0,           # text offset
+            width=None, height=None, # text box size
+            box=None,                # if defined, left, top, bottom, and right coords override the above
+            gravity = 'nw',          # align text to nw, n, ne, w, c, e, sw, s, or se of frame
+            wrap = False,            # wrap long lines to fit
+            clip = True,             # clip text to fit frame (False will render partial characters)
             point = 20,              # pointsize
             font = __font__          # font
         ):
 
         # convert text to list of lines
         text=[s.expandtabs() for s in text.splitlines()]
-
-        if clip is None: clip = wrap
 
         if box:
             # box is (left, top, right, bottom)
