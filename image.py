@@ -1,4 +1,5 @@
 # Graphic image using pgmagick, works with python 2 or 3
+# See https://www.imagemagick.org/Magick++/Image++.html
 
 from __future__ import print_function, division
 import os, sys
@@ -34,32 +35,6 @@ def _to_bytes(s):
     except:
         return bytes(s)
 
-class draw():
-    def __init__(self):
-        self.dl = DrawableList()
-
-    def draw(self, image):
-        image.draw(self.dl)
-        self.dl=DrawableList()
-
-    def stroke(self, width):
-        self.dl.append(DrawableStrokeWidth(width))
-
-    def color(self, color):
-        self.dl.append(DrawableStrokeColor(Color(color)))
-
-    def fill(self, color):
-        self.dl.append(DrawableFillColor(Color(color)))
-
-    def gravity(self, gravity):
-        self.dl.append(DrawableGravity(gravities[gravity]))
-
-    def rectangle(self, left, top, width, height):
-        self.dl.append(DrawableRectangle(left, top, left+width-1, top+height-1))
-
-    def text(self, left, top, text):
-        self.dl.append(DrawableText(left, top, _to_bytes(text)))
-
 class image():
 
     def __init__(
@@ -94,9 +69,9 @@ class image():
     # Draw a border in fg color on edge of the image
     def border(self, width):
         l = self.layer()
-        l.stroke_width(width)
-        l.stroke_color(self.fg)
-        l.fill_color("transparent")
+        l.strokeWidth(width)
+        l.strokeColor(self.fg)
+        l.fillColor("transparent")
         l.draw(DrawableRectangle(0, 0, self.width, self.height))
         self.overlay(l)
 
@@ -129,18 +104,17 @@ class image():
         if width is None: width is self.width
 
         l=self.layer()
+        l.strokeWidth(0)
+        l.fillColor(self.fg)
         l.font(font)
         l.fontPointsize(point)
         tm = TypeMetric()
         l.fontTypeMetrics("M",tm)
 
         #  y offset is based on gravity
-        if gravity in ("nw","n","ne"):
-            yoffset = tm.ascent()
-        elif gravity in ("sw","s","se"):
-            yoffset = -tm.descent()
-        else:
-            yoffset=0
+        if gravity in ("nw","n","ne"): yoffset = tm.ascent()
+        elif gravity in ("sw","s","se"): yoffset = -tm.descent()
+        else: yoffset=0
 
         maxcols = int(width // tm.textWidth())
         maxlines = int(height // (tm.textHeight()+1))
@@ -164,15 +138,15 @@ class image():
             text = text[:maxlines]
             text = [s[:maxcols] for s in text] # does nothing if wrapped
 
-        l.stroke_width(0)
-        l.fill_color(self.fg)
+        if text:
+            # If text remains, write it to the layer with gravity
+            # XXX can this be done with Image.annotate()?
+            d = DrawableList()
+            d.append(DrawableGravity(gravities[gravity]))
+            d.append(DrawableText(0, yoffset, '\n'.join(text)))
+            l.draw(d)
 
-        d = draw()
-        d.gravity(gravity)
-        d.text(0, yoffset, '\n'.join(text))
-        d.draw(l)
-
-        self.overlay(l, (left, top))
+            self.overlay(l, (left, top))
 
     # Load an image file and scale/stretch.
     def read(
