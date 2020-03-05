@@ -41,7 +41,6 @@ class screen():
             self,
             width, height,              # screen size
             bg="black", fg="white",     # default colors
-            rgb=None                    # initialize with raw rgb data (must be width*height*3 bytes)
         ):
 
         self.width = width
@@ -49,62 +48,56 @@ class screen():
         self.fg = fg
         self.bg = bg
 
-        if rgb:
-            self.image = Image(Blob(rgb), Geometry(width, height), 8, "RGB")
-        else:
-            self.image = Image(Geometry(width, height), Color(bg))
+        # create the base image
+        self.base = Image(Geometry(width, height), Color(bg))
 
-    # A bounding box is list of  [left, top, right, bottom], each specified
-    # as fraction of the relevant screen dimension if <= 1 , or as an absolute
-    # coordinate if > 1. Parse the box for current image, make sure x2,y2 is
-    # southeast of x1,y1 and return (left, top, width, height)
+    @property
+    def right(self):
+        return self.width-1
+
+    @property
+    def bottom(self):
+        return self.height-1
+
+    # Given values for left, top, right, and bottom as percentages 0-100, return the actual left, top, right, and bottom coordinates
     def box(self, l, t, r, b):
-        x1 = l if l > 1 else self.width * l
-        y1 = t if t > 1 else self.height * t
-        x2 = r if r > 1 else self.width * r
-        y2 = b if b > 1 else self.height * b
-        assert x1 < x2 and y1 < y2
-        return (int(x1), int(y1), int(x2-x1+1), int(y2-y1+1))
+        return int(self.right * l / 100), int(self.bottom * t / 100), int(self.right * r / 100), int(self.bottom * b / 100)
 
-    # Merge an image onto screen at specified (x,y) offset or gravity
-    def merge(self, image, offset=(0,0)):
-        if type(offset) in [list, tuple]:
-            offset = Geometry(0,0,offset[0],offset[1]) # see http://www.graphicsmagick.org/Magick++/Geometry.html
-        else:
-            offset = _gravity(offset)
-        self.image.composite(image, offset, CompositeOperator.OverCompositeOp)
+    # Merge an img onto base at specified (x,y) offset or gravity
+    def merge(self, img, left, top):
+        g = Geometry(0,0,left,top) # see http://www.graphicsmagick.org/Magick++/Geometry.html
+        self.base.composite(img, g, CompositeOperator.OverCompositeOp)
 
     # Add screen border of specified width
     def border(self, width, color=None):
-        self.image.strokeWidth(width)
-        self.image.strokeColor(color or self.fg)
-        self.image.fillColor("transparent")
-        self.image.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
+        self.base.strokeWidth(width)
+        self.base.strokeColor(color or self.fg)
+        self.base.fillColor("transparent")
+        self.base.draw(DrawableRectangle(0, 0, self.right, self.bottom))
 
     # Write arbitrary text to the screen
     def text(
             self,
             text,                           # text to be written, may contain tabs and linefeeds.
-            left = 0, top = 0,              # offset of the text box on the screen
-            width = None, height = None,    # text box size
-            box = None,                     # alternative way of defining left, top, width and height, see box()
-            gravity = 'northwest',          # gravity (text pulls in that direction)
-            wrap = False,                   # wrap long lines to fit
-            clip = True,                    # clip text to fit frame (False will render partial characters)
-            point = 20,                     # pointsize
-            fg = None,                      # text color, default to self.fg
-            bg = "transparent",             # background color
-            font = __font__                 # font
+            left = 0, top = 0,              # text box
+            right = 0, bottom = 0,
+            gravity = 'northwest',          # text gravity (in the box)
+            wrap = False,                   # wrap long lines to fit the box
+            clip = True,                    # clip text to fit the box (False will render partial characters)
+            point = 20,                     # text point size
+            fg = None,                      # default text color, default to self.fg
+            bg = "transparent",             # default background color
+            font = __font__                 # text font
         ):
 
         # convert text to list of lines
         text=[s.expandtabs() for s in text.splitlines()]
 
-        if box:
-            left, top, width, height = self.box(*box)
-        else:
-            if height is None: height is self.height
-            if width is None: width is self.width
+        if right <= 0: right += self.right
+        if bottom <= 0: bottom += self.bottom
+
+        width = (right-left)+1
+        height = (bottom-top)+1
 
         gravity = _gravity(gravity)
 
@@ -154,10 +147,48 @@ class screen():
             d.append(DrawableText(0, yoffset, '\n'.join(text)))
             layer.draw(d)
 
-            self.merge(layer, (left, top))
+            self.merge(layer, left, top)
 
-    # Return screen raw RGB data
+    # Place an image on the screen
+    # If rgb is defined, load raw rgb, which must be width*height*3 bytes (for use with framebuffer.rgb())
+    # Else if name is defined, load image file (or read it from stdin if "-"). Image can be stretched to fit.
+    # Else create an image of specified bg color
+    def image(
+            self,
+            file = None,                    # Image file name or "-"
+            left = 0, top = 0,              # Image box
+            right = 0, bottom = 0,
+            rgb = None,                     # Raw RGB data (instead of file)
+            bg = "black",                   # default background color
+            stretch = False                 # stretch image to fit box
+            ):
+
+        if right <= 0: right += self.right
+        if bottom <= 0: bottom += self.bottom
+
+        width = (right - left) + 1
+        height = (bottom - top) + 1
+
+        if rgb:
+            img = Image(Blob(rgb), Geometry(width, height), 8, "RGB")
+        elif file:
+            if file == '-':
+                img = Image(Blob(sys.stdin.buffer.read))
+            else:
+                img = Image(file)
+            # scale to desired size
+            g = Geometry(width, height)
+            if stretch: g.aspect(True)
+            img.scale(g)
+        else:
+            # just use the background color
+            img=(Geometry(width, height), Color(bg))
+
+        # place image on screen
+        self.merge(img, left, top)
+
+    # Return screen raw RGB data, for use with framnebuffer.pack()
     def rgb(self):
         blob = Blob()
-        self.image.write(blob, "RGB", 8)
+        self.base.write(blob, "RGB", 8)
         return blob.data

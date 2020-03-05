@@ -46,26 +46,14 @@ except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-# read the image with graphicsmagick
-if filename == '-':
-    fh = sys.stdin.buffer
-else:
-    fh = open(filename, mode='rb')
-image = Image(Blob(fh.read()))
-
-# open the framebuffer
-fb = fb.framebuffer(device)
-
 # create a screen, possibly with unpacked framebuffer data
-screen = screen.screen(fb.width, fb.height, bg=color, rgb=fb.unpack() if overlay else None)
+screen = screen.screen(fb.width, fb.height, bg=color)
 
-# scale the image to fit withing the desired margin
-g = Geometry(screen.width-(margin*2), screen.height-(margin*2))
-if stretch: g.aspect(True)
-image.scale(g)
+# use existing fb contents if overlay
+if overlay: screen.image(rgb=fb.unpack)
 
-# merge it onto the screen
-screen.merge(image, 'center')
+# load image
+screen.image(filename, left=margin, top=margin, right=-margin, bottom=-margin, stretch=stretch)
 
 # update the framebuffer
 fb.pack(screen.rgb())

@@ -56,14 +56,13 @@ except Exception as e:
 f = fb.framebuffer(device)
 screen=screen.screen(width=f.width, height=f.height, fg=fg, bg=bg)
 
-# box is (left, top, right, bottom), each as fraction of the screen dimension <
-# 0, or absolute coordinate if > 0.
-textbox = (0.1,  0.1, 0.9,  0.55)
-yesbox =  (0.2,  0.6, 0.45, 0.8)
-nobox =   (0.55, 0.6, 0.8,  0.8)
+# box is (left, top, right, bottom), each as percentage of the screen dimension
+textbox = screen.box(10, 10, 90, 55)
+yesbox =  screen.box(20, 60, 45, 80)
+nobox =   screen.box(55, 60, 80, 80)
 
 if border: screen.border(border)
-screen.text(" ".join(args), box=textbox, gravity='center', wrap=True, clip=True, point=point)
-screen.text(yes, box=yesbox, bg='green', gravity='center', wrap=True, point=point)
-screen.text(no, box=nobox, bg='red', gravity='center', wrap=True, point=point)
+screen.text(" ".join(args), *textbox, gravity='center', wrap=True, clip=True, point=point)
+screen.text(yes, *yesbox, bg='green', gravity='center', wrap=True, point=point)
+screen.text(no, *nobox, bg='red', gravity='center', wrap=True, point=point)
 f.pack(screen.rgb())

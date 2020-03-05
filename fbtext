@@ -92,7 +92,7 @@ if border:
     margin += border
 
 # add the text
-screen.text(text, left=margin, top=margin, width=screen.width-(margin*2), height=screen.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
+screen.text(text, left=margin, top=margin, right=-margin, bottom=-margin, gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
 
 # update the framebuffer
 fb.pack(screen.rgb())

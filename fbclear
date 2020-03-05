@@ -24,8 +24,8 @@ try:
 
     opts, args = getopt.getopt(sys.argv[1:],"c:d:")
     for opt, arg in opts:
-        if   opt == "-c": color=arg.lower()
-        elif opt == "-d": device=arg
+        if   opt == "-c": color = arg.lower()
+        elif opt == "-d": device = arg
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args): raise Exception("Unexpected argument '%s'" % ' '.join(args))
 
@@ -34,6 +34,6 @@ except Exception as e:
     print (str(e),usage, file=sys.stderr)
     quit(1)
 
-f=fb.framebuffer(device=device)
-i=screen.screen(width=f.width, height=f.height, fg=color, bg=color)
+f = fb.framebuffer(device=device)
+i = screen.screen(width=f.width, height=f.height, bg=color)
 f.pack(i.rgb())
