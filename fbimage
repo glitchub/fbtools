@@ -24,10 +24,10 @@ If image.file is "-" then read the image from stdin.
 """
 
 color="black"
-margin=0
-stretch=False
 device="/dev/fb0"
+margin=0
 overlay=False
+stretch=False
 
 try:
 
@@ -46,14 +46,17 @@ except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-# create a screen, possibly with unpacked framebuffer data
+# Open the framebuffer
+fb=fb.framebuffer(device)
+
+# Create a screen
 screen = screen.screen(fb.width, fb.height, bg=color)
 
-# use existing fb contents if overlay
+# Maybe load existing fb contents
 if overlay: screen.image(rgb=fb.unpack)
 
-# load image
+# Load image between margins
 screen.image(filename, left=margin, top=margin, right=-margin, bottom=-margin, stretch=stretch)
 
-# update the framebuffer
+# Update the framebuffer
 fb.pack(screen.rgb())

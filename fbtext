@@ -80,10 +80,10 @@ else:
     # read text from file
     with open(args[0]) as fh: text=fh.read()
 
-# pen the fremebuffer
+# Open the fremebuffer
 fb = fb.framebuffer(device)
 
-# create the screen image
+# Init the screen
 screen = screen.screen(width=fb.width, height=fb.height, fg=fg, bg=bg)
 
 # maybe put a border
