@@ -8,28 +8,28 @@ import fb, image
 usage = """
 Usage:
 
-    fbtext [options] text.file
+    fbtext [options] [file.txt]
 
-Write arbitrary multi-line UTF8 text to frame buffer.
+Write arbitrary text from file or stdin to frame buffer.
 
 Options are:
 
-    -b width                - screen border width, default is "0" (no border)
+    -b width                - screen border width, default is 0 (no border)
     -c [fg][:bg]            - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
     -f path/to/font         - path to font
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
-    -m                      - text margin in pixels, default is "10"
-    -s point                - font point size, default is "20"
-    -w                      - wrap text at right margin
-    -x                      - clip text at right/bottom margins
+    -m                      - text margin in pixels, default is 10
+    -s point                - font point size, default is 20
+    -w                      - wrap text to fit
+    -x                      - clip text to fit (otherwise may render partial characters)
 
 Font names "m" and "p" will select built-in monospaced or proportional fonts.
 The default font is "m".
 
--w and -x should be avoided if using proportional fonts.
+-w and -x should be avoided with proportional fonts.
 
-If the text file name is '-' then read text from stdin.
+If the file not specified then read text from stdin.
 """
 
 __here__ = os.path.dirname(__file__) or '.'
@@ -47,7 +47,6 @@ wrap = False
 clip = False
 
 try:
-
     opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
 
     for opt, arg in opts:
@@ -71,12 +70,11 @@ try:
     if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
 
 except Exception as e:
-
     print (str(e),"\n",usage,file = sys.stderr)
     quit(1)
 
 if not args or args[0] == '-':
-    # read text from stdin (note it's in binary mode)
+    # read text from stdin (it's in binary mode)
     text = str(sys.stdin.buffer.read(),'utf8')
 else:
     # read text from file

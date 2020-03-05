@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+# Write UTF-8 text to frame buffer, works with python 2 or 3
+
+from __future__ import print_function
+import os, sys, getopt
+import fb, image
+
+usage = """
+Usage:
+
+    fbtext [options] "question"
+
+Ask a question, get an answer. Exit status is 0 for Yes, 1 for No, anything else for error.
+
+Options are:
+
+    -c [fg][:bg]            - foreground and background colors, default is "white:black"
+    -d device               - framebuffer device, default is "/dev/fb0"
+    -n "string"             - string for "No"
+    -s point                - font point size, default is "20"
+    -y "string"             - sring for "Yes"
+"""
+
+__here__ = os.path.dirname(__file__) or '.'
+
+# set defaults
+bg = "black"
+device = "/dev/fb0"
+fg = "white"
+no = "No"
+point = 20
+yes = "Yes"
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"c:d:n:s:y:")
+
+    if not args: raise Exception("Must provide a question.")
+
+    for opt, arg in opts:
+        if   opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
+        elif opt == "-d": device = arg
+        elif opt == "-n": no = arg
+        elif opt == "-s": point = int(arg)
+        elif opt == "-y": yes = arg
+        else: raise Exception("Invalid option '%s'" % opt)
+
+    if bg == '': bg = "black"
+
+except Exception as e:
+    print (str(e),"\n",usage,file = sys.stderr)
+    quit(2)
+
+f = fb.framebuffer(device)
+screen=image.image(width=f.width, height=f.height, fg=fg, bg=bg)
+
+textbox=(screen.width*.1, screen.height*.1, screen.width*.9, screen.height*.6)
+yesbox=(screen.width*.2, screen.height*.7, screen.width*.45, screen.height**.9)
+nobox=(screen.width*.55, screen.height*.7, screen.width*.8, screen.height*.9)
+
+screen.border(1)
+screen.text(" ".join(args), box=textbox, gravity='s', wrap=True, clip=True, point=20)
+screen.text(yes, box=yesbox)
+screen.text(no, box=nobox)
+f.pack(screen.rgb())
