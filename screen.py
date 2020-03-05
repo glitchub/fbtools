@@ -14,7 +14,7 @@ __here__ = os.path.dirname(__file__) or '.'
 __font__ = __here__ + "/WenQuanYiMicroHeiMono.ttf"
 
 # convert gravity string to gravity type
-def gravity(g):
+def _gravity(g):
     if type(g) is GravityType: return g
     return { "nw":          GravityType.NorthWestGravity,
              "northwest":   GravityType.NorthWestGravity,
@@ -71,7 +71,7 @@ class screen():
         if type(offset) in [list, tuple]:
             offset = Geometry(0,0,offset[0],offset[1]) # see http://www.graphicsmagick.org/Magick++/Geometry.html
         else:
-            offset = gravity(offset)
+            offset = _gravity(offset)
         self.image.composite(image, offset, CompositeOperator.OverCompositeOp)
 
     # Add screen border of specified width
@@ -106,7 +106,7 @@ class screen():
             if height is None: height is self.height
             if width is None: width is self.width
 
-        gravity = gravity(gravity)
+        gravity = _gravity(gravity)
 
         # create the text layer
         layer = Image(Geometry(width, height), Color(bg))
