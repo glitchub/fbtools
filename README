@@ -1,36 +1,11 @@
-Frame buffer manipulation tools for linux, supporting frame buffer depths 16
-(565), 24 (RGB), and 32 (ARGB).
+Frame buffer manipulation tools and user interface primitives for linux,
+supporting frame buffer depths 16 (565), 24 (RGB), and 32 (ARGB).
 
-Files are:
+Run 'make' to build the executables, and the fb.bin shared library.
 
-    fbclear: a python script that clears the frame buffer with an optional
-    color.
+Note this requires the pgmagick module to be installed, which in turn requires
+the libgraphicsmagick++ and its dependencies.
 
-    fbimage: a python script that decodes and writes a graphics image file to
-    the frame buffer
+For debian/ubuntu try 'apt install python3-pgmagic'.
 
-    fbtext: a python script that reads text from a file or stdin, formats and
-    writes it to the frame buffer.
-
-    fb.py: a python module that provides the core functionality of fbclear,
-    fbimage, and fbtext.
-
-    fbquery.c: a utility program that reports some potentially interesting
-    frame buffer info.
-
-    fbput.c: a utility program that copies raw RGB data from stdin or file to
-    the frame buffer.
-
-    fb.c: a library that provides the access to the raw frame buffer device. It
-    is compiled as a .so, invoked by fb.py, fbput and fbquery.
-
-Run 'make' to build the eexecutables, and the fb.bin shared library.
-
-The python code is version agnostic and will worh with python2 or python3,
-although the default is python3.
-
-Note it requires the pgmagick module to be installed for whichever version of
-python will be used, e.g. via 'apt install python3-pgmagick', 'pip install
-pgmagick', etc.
-
-All scripts and programs can be run with -h option to print help.
+Executables can be run with -h option to print help.

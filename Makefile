@@ -6,7 +6,9 @@ default: ${PROGRAMS} fb.bin
 
 ${PROGRAMS}: % : %.c fb.o
 
-fb.bin: fb.o; gcc ${CFLAGS} -shared -Wl,-soname,$@ -o $@ $<
+fb.bin: fb.o
+	gcc ${CFLAGS} -shared -Wl,-soname,$@ -o $@ $<
+	chmod 644 $@
 
 .INTERMEDIATE: fb.o
 fb.o: fb.c; gcc ${CFLAGS} -c -fPIC -o $@ $<

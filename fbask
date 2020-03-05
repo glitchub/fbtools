@@ -2,8 +2,7 @@
 # Write UTF-8 text to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import os, sys, getopt
-import fb, screen
+import os, sys, getopt, fb, screen
 
 usage = """
 Usage:
@@ -55,16 +54,16 @@ except Exception as e:
     quit(2)
 
 f = fb.framebuffer(device)
-screen=screen.image(width=f.width, height=f.height, fg=fg, bg=bg)
+screen=screen.screen(width=f.width, height=f.height, fg=fg, bg=bg)
 
 # box is (left, top, right, bottom), each as fraction of the screen dimension <
 # 0, or absolute coordinate if > 0.
-textbox=(.1, .1, .9, .6)
-yesbox=(.2, .7, .45, .9)
-nobox=(.55, .7, .8, .9)
+textbox = (0.1,  0.1, 0.9,  0.55)
+yesbox =  (0.2,  0.6, 0.45, 0.8)
+nobox =   (0.55, 0.6, 0.8,  0.8)
 
 if border: screen.border(border)
-screen.text(" ".join(args), box=textbox, gravity='c', wrap=True, clip=True, point=20)
-screen.text(yes, box=yesbox, bg='green', gravity='c', wrap=True)
-screen.text(no, box=nobox, bg='red', gravity='c', wrap=True)
+screen.text(" ".join(args), box=textbox, gravity='center', wrap=True, clip=True, point=20)
+screen.text(yes, box=yesbox, bg='green', gravity='center', wrap=True)
+screen.text(no, box=nobox, bg='red', gravity='center', wrap=True)
 f.pack(screen.rgb())
