@@ -35,5 +35,5 @@ except Exception as e:
     quit(1)
 
 f=fb.framebuffer(device=device)
-i=screen.image(width=f.width, height=f.height, fg=color, bg=color)
+i=screen.screen(width=f.width, height=f.height, fg=color, bg=color)
 f.pack(i.rgb())
