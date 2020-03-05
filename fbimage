@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import sys, getopt, fb, screen
+from pgmagick import *
 
 usage="""
 Usage:
@@ -39,13 +40,32 @@ try:
         elif opt == "-o": overlay=True
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    name = args[0]
+    filename = args[0]
 
 except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-f = fb.framebuffer(device)
-i = screen.image(f.width, f.height, bg=color, fg=color, rgb=f.unpack() if overlay else None)
-i.read(filename=name, margin=margin, stretch=stretch)
-f.pack(i.rgb())
+# read the image with graphicsmagick
+if filename == '-':
+    fh = sys.stdin.buffer
+else:
+    fh = open(filename, mode='rb')
+image = Image(Blob(fh.read()))
+
+# open the framebuffer
+fb = fb.framebuffer(device)
+
+# create a screen, possibly with unpacked framebuffer data
+screen = screen.screen(fb.width, fb.height, bg=color, rgb=fb.unpack() if overlay else None)
+
+# scale the image to fit withing the desired margin
+g = Geometry(screen.width-(margin*2), screen.height-(margin*2))
+if stretch: g.aspect(True)
+image.scale(g)
+
+# merge it onto the screen
+screen.merge(image, 'center')
+
+# update the framebuffer
+fb.pack(screen.rgb())

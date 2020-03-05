@@ -11,4 +11,4 @@ fb.bin: fb.o; gcc ${CFLAGS} -shared -Wl,-soname,$@ -o $@ $<
 .INTERMEDIATE: fb.o
 fb.o: fb.c; gcc ${CFLAGS} -c -fPIC -o $@ $<
 
-clean:; rm -f ${PROGRAMS} fb.bin *.pyc *.o
+clean:; rm -rf ${PROGRAMS} fb.bin *.o *.pyc __pycache__

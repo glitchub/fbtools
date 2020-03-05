@@ -47,7 +47,7 @@ wrap = False
 clip = False
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxy")
 
     for opt, arg in opts:
         if   opt == "-b": border = int(arg)
@@ -65,7 +65,6 @@ try:
         elif opt == "-y": pass # legacy
         else: raise Exception("Invalid option '%s'" % opt)
 
-
     if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
     elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
     if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
@@ -76,15 +75,24 @@ except Exception as e:
 
 if not args or args[0] == '-':
     # read text from stdin (it's in binary mode)
-    text = str(sys.stdin.buffer.read(),'utf8')
+    text = str(sys.stdin.buffer.read(),"utf8")
 else:
     # read text from file
     with open(args[0]) as fh: text=fh.read()
 
-f = fb.framebuffer(device)
-i = screen.image(width=f.width, height=f.height, fg=fg, bg=bg)
+# pen the fremebuffer
+fb = fb.framebuffer(device)
+
+# create the screen image
+screen = screen.screen(width=fb.width, height=fb.height, fg=fg, bg=bg)
+
+# maybe put a border
 if border:
-    i.border(border)
+    screen.border(border)
     margin += border
-i.text(text, left=margin, top=margin, width=i.width-(margin*2), height=i.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
-f.pack(i.rgb())
+
+# add the text
+screen.text(text, left=margin, top=margin, width=screen.width-(margin*2), height=screen.height-(margin*2), gravity=gravity, wrap=wrap, clip=clip, point=point, font=font)
+
+# update the framebuffer
+fb.pack(screen.rgb())
