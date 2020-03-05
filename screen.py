@@ -160,7 +160,8 @@ class screen():
             right = 0, bottom = 0,
             rgb = None,                     # Raw RGB data (instead of file)
             bg = "black",                   # default background color
-            stretch = False                 # stretch image to fit box
+            stretch = False,                # stretch image to fit box
+            gravity = "center"              # align image if not stretched
             ):
 
         if right <= 0: right += self.right
@@ -176,10 +177,17 @@ class screen():
                 img = Image(Blob(sys.stdin.buffer.read))
             else:
                 img = Image(file)
+
             # scale to desired size
             g = Geometry(width, height)
-            if stretch: g.aspect(True)
-            img.scale(g)
+            if stretch:
+                g.aspect(True)
+                img.scale(g)
+            else:
+                img.scale(g)
+                container = Image(Geometry(width, height), Color("transparent"))
+                container.composite(img, _gravity(gravity), CompositeOperator.OverCompositeOp)
+                img=container
         else:
             # just use the background color
             img=(Geometry(width, height), Color(bg))
