@@ -2,7 +2,7 @@
 # Write image to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import sys, getopt, image, fb
+import sys, getopt, fb, screen
 
 usage="""
 Usage:
@@ -46,6 +46,6 @@ except Exception as e:
     quit(1)
 
 f = fb.framebuffer(device)
-i = image.image(f.width, f.height, bg=color, fg=color, rgb=f.unpack() if overlay else None)
+i = screen.image(f.width, f.height, bg=color, fg=color, rgb=f.unpack() if overlay else None)
 i.read(filename=name, margin=margin, stretch=stretch)
 f.pack(i.rgb())

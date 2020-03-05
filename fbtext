@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import os, sys, getopt
-import fb, image
+import fb, screen
 
 usage = """
 Usage:
@@ -51,7 +51,9 @@ try:
 
     for opt, arg in opts:
         if   opt == "-b": border = int(arg)
-        elif opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
+        elif opt == "-c":
+            fg, bg = (arg.lower()+":").split(":")[:2]
+            if bg == '': bg = "black"
         elif opt == "-d": device = arg
         elif opt == "-f": font = arg
         elif opt == "-g": gravity = arg.lower()
@@ -63,7 +65,6 @@ try:
         elif opt == "-y": pass # legacy
         else: raise Exception("Invalid option '%s'" % opt)
 
-    if bg == '': bg = "black"
 
     if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
     elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
@@ -81,7 +82,7 @@ else:
     with open(args[0]) as fh: text=fh.read()
 
 f = fb.framebuffer(device)
-i = image.image(width=f.width, height=f.height, fg=fg, bg=bg)
+i = screen.image(width=f.width, height=f.height, fg=fg, bg=bg)
 if border:
     i.border(border)
     margin += border

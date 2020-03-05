@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import os, sys, getopt
-import fb, image
+import fb, screen
 
 usage = """
 Usage:
@@ -14,6 +14,7 @@ Ask a question, get an answer. Exit status is 0 for Yes, 1 for No, anything else
 
 Options are:
 
+    -b width                - screen border width, default is 0 (no border)
     -c [fg][:bg]            - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
     -n "string"             - string for "No"
@@ -25,6 +26,7 @@ __here__ = os.path.dirname(__file__) or '.'
 
 # set defaults
 bg = "black"
+border = 0
 device = "/dev/fb0"
 fg = "white"
 no = "No"
@@ -37,21 +39,23 @@ try:
     if not args: raise Exception("Must provide a question.")
 
     for opt, arg in opts:
-        if   opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
+        if   opt == "-b": border = int(arg)
+        elif opt == "-c":
+            fg, bg = (arg.lower()+":").split(":")[:2]
+            if not bg: bg = "black"
         elif opt == "-d": device = arg
         elif opt == "-n": no = arg
         elif opt == "-s": point = int(arg)
         elif opt == "-y": yes = arg
         else: raise Exception("Invalid option '%s'" % opt)
 
-    if bg == '': bg = "black"
 
 except Exception as e:
     print (str(e),"\n",usage,file = sys.stderr)
     quit(2)
 
 f = fb.framebuffer(device)
-screen=image.image(width=f.width, height=f.height, fg=fg, bg=bg)
+screen=screen.image(width=f.width, height=f.height, fg=fg, bg=bg)
 
 # box is (left, top, right, bottom), each as fraction of the screen dimension <
 # 0, or absolute coordinate if > 0.
@@ -59,8 +63,8 @@ textbox=(.1, .1, .9, .6)
 yesbox=(.2, .7, .45, .9)
 nobox=(.55, .7, .8, .9)
 
-screen.border(1)
-screen.text(" ".join(args), box=textbox, gravity='c', wrap=True, clip=True, point=20)
-screen.text(yes, box=yesbox, bg='green', gravity='c')
-screen.text(no, box=nobox, bg='red', gravity='c')
+if border: screen.border(border)
+screen.text(" ".join(args), box=textbox, gravity='c', wrap=True, clip=True, point=20, margin=20)
+screen.text(yes, box=yesbox, bg='green', gravity='c', wrap=True, margin=2)
+screen.text(no, box=nobox, bg='red', gravity='c', wrap=True, margin=2)
 f.pack(screen.rgb())
