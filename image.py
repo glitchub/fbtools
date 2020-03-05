@@ -56,8 +56,8 @@ class image():
             self.image = Image(Geometry(width, height), Color(bg))
 
     # create transparent layer for subsequent overlay
-    def layer(self, width=None, height=None):
-        return Image(Geometry(width or self.width, height or self.height), Color("transparent"))
+    def layer(self, width=None, height=None, bg="transparent"):
+        return Image(Geometry(width or self.width, height or self.height), Color(bg))
 
     # overlay image with l at specified offset or with specified gravity
     def overlay(self, l, pos=(0,0)):
@@ -85,6 +85,8 @@ class image():
             wrap = False,            # wrap long lines to fit
             clip = True,             # clip text to fit frame (False will render partial characters)
             point = 20,              # pointsize
+            fg=None,                 # foreground, default to self.fg
+            bg="transparent",        # background color
             font = __font__          # font
         ):
 
@@ -108,7 +110,7 @@ class image():
         width = int(width)
 
         # write text to a layer
-        l = self.layer(width, height)
+        l = self.layer(width, height, bg)
         l.font(font)
         l.fontPointsize(point)
         tm = TypeMetric()
@@ -145,7 +147,7 @@ class image():
         if text:
             # If text remains, write it to the layer with gravity
             l.strokeWidth(0)
-            l.fillColor(self.fg)
+            l.fillColor(fg or self.fg)
             # XXX can this be done with Image.annotate()?
             d = DrawableList()
             d.append(DrawableGravity(gravities[gravity]))
