@@ -53,7 +53,7 @@ fb=fb.framebuffer(device)
 screen = screen.screen(fb.width, fb.height, bg=color)
 
 # Maybe load existing fb contents
-if overlay: screen.image(rgb=fb.unpack)
+if overlay: screen.image(rgb=fb.unpack())
 
 # Load image between margins
 screen.image(filename, left=margin, top=margin, right=-margin, bottom=-margin, stretch=stretch)
