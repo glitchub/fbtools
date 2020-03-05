@@ -55,6 +55,18 @@ class image():
         else:
             self.image = Image(Geometry(width, height), Color(bg))
 
+    # A bounding box is defined as (left, top, right, bottom), each specified
+    # as fraction of the relevant screen dimension if <= 1 , or as an absolute
+    # coordinate if > 1. Parse the box for current image, make sure x2,y2 is
+    # southeast of x1,y1 and return (left, top, width, height)
+    def box(self, l, t, r, b):
+        x1 = l if l > 1 else self.width * l
+        y1 = t if t > 1 else self.height * t
+        x2 = r if r > 1 else self.width * r
+        y2 = b if b > 1 else self.height * b
+        assert x1 < x2 and y1 < y2
+        return (int(x1), int(y1), int(x2-x1+1), int(y2-y1+1))
+
     # create transparent layer for subsequent overlay
     def layer(self, width=None, height=None, bg="transparent"):
         return Image(Geometry(width or self.width, height or self.height), Color(bg))
@@ -78,10 +90,10 @@ class image():
     def text(
             self,
             text,                    # text to be written, may contain tabs and linefeeds.
-            left=0, top=0,           # text offset
+            left=0, top=0,           # text box offset in image
             width=None, height=None, # text box size
-            box=None,                # if defined, left, top, bottom, and right coords override the above
-            gravity = 'nw',          # align text to nw, n, ne, w, c, e, sw, s, or se of frame
+            box=None,                # bounding box, alternative way of defining left, top, width and height
+            gravity = 'nw',          # align text to nw, n, ne, w, c, e, sw, s, or se of the text box
             wrap = False,            # wrap long lines to fit
             clip = True,             # clip text to fit frame (False will render partial characters)
             point = 20,              # pointsize
@@ -94,20 +106,10 @@ class image():
         text=[s.expandtabs() for s in text.splitlines()]
 
         if box:
-            # box is (left, top, right, bottom)
-            left = box[0]
-            top = box[1]
-            width = (box[2]-box[0])+1
-            height = (box[3]-box[1])+1
+            left, top, width, height = self.box(*box)
         else:
             if height is None: height is self.height
             if width is None: width is self.width
-
-        # keep it real
-        left = int(left)
-        top = int(top)
-        height = int(height)
-        width = int(width)
 
         # write text to a layer
         l = self.layer(width, height, bg)
