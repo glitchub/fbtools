@@ -50,8 +50,8 @@ class touch():
             fd.close()
         raise Exception("No touch device found")
 
-    # Return touch (x, y) or None if timeout.
-    def position(self, timeout=None, reset=False):
+    # Return touch (x, y) or None if timeout or False if release
+    def position(self, timeout=None, reset=False, release=False):
         while True:
 
             if reset and self.fd is not None:
@@ -59,7 +59,7 @@ class touch():
                 self.fd = None
 
             if timeout is not None:
-                if timeout <= 0: return
+                if timeout <= 0: return None
                 timeout += time.monotonic()
 
             if self.fd is None:
@@ -86,6 +86,8 @@ class touch():
                 if type == 0:
                     if press and x_abs is not None and y_abs is not None: return (x_abs, y_abs)
                     press = x_abs = y_abs = None
+                elif type == 1 and code == 330 and value == 0:
+                    if release: return False # return False if release enabled
                 elif type == 1 and code == 330 and value == 1:
                     press = True
                 elif type == 3 and code == 0:
@@ -114,5 +116,7 @@ if __name__ == "__main__":
     t = touch() # without arguments, find first EV_ABS device with X and Y axis
     print("Using device %s, %d x %d" % (t.device, t.width, t.height))
     while True:
-        x, y = t.position()
-        print("Touch at %d x %d" % (x, y))
+        pos = t.position(timeout=5, release=True)
+        if pos is None: print("Timeout")
+        elif pos is False: print("Release")
+        else: print("Touch at %d x %d" % pos)

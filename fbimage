@@ -1,7 +1,6 @@
 #!/usr/bin/python3
-# Write image to frame buffer, works with python 2 or 3
 
-from __future__ import print_function
+# Write an image to frame buffer
 import sys, getopt, fb, screen
 from pgmagick import *
 
@@ -18,7 +17,7 @@ Options are:
     -d device               - framebuffer device, default is "/dev/fb0"
     -m width                - margin width, default is "0" (no margin)
     -o                      - overlay existing framebuffer image
-    -s                      - stretch the image to fit, default is scale to fit.
+    -s                      - stretch the image to fit
 
 If image.file is "-" then read the image from stdin.
 """

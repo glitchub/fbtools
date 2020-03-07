@@ -101,9 +101,6 @@ class screen(layer):
     def box(self, pleft, ptop, pright, pbottom):
         return (int(self.right * pleft / 100), int(self.bottom * ptop / 100), int(self.right * pright / 100), int(self.bottom * pbottom / 100))
 
-    def border(self, width, color=None):
-        super().border(width, color)
-
     # Write layer to screen
     def merge(self, l):
         g = Geometry(0, 0, l.left, l.top) # an offset, see http://www.graphicsmagick.org/Magick++/Geometry.html
@@ -209,7 +206,7 @@ class screen(layer):
         stretch = stretch or False
 
         if rgb:
-            img = Image(Blob(rgb), Geometry(width, height), 8, "RGB"))
+            img = Image(Blob(rgb), Geometry(width, height), 8, "RGB")
             l = layer(top, left, right, bottom, image = img)
         elif file:
             if file == '-':
