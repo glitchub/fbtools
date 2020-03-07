@@ -1,6 +1,7 @@
 # module to provide touch screen support
 from __future__ import print_function
-import os, sys, ctypes, glob, fcntl, struct, select, time
+import os, sys, glob, fcntl, struct, select, time
+from ctypes import *
 
 # python2 doesn't support monotonic time, use the wall clock for timeouts
 if 'monotonic' not in dir(time): time.monotonic=time.time
@@ -10,7 +11,7 @@ if 'monotonic' not in dir(time): time.monotonic=time.time
 # Returned by EVIOCGABS ioctl
 class input_absinfo(Structure):
     _fields_ = [
-        ("value" c_uint),         # last value returned
+        ("value", c_uint),        # last value returned
         ("minimum", c_uint),      # minimum value for the axis
         ("maximum", c_uint),      # maximum value for the axis
         ("fuzz", c_uint),         # fuzz value used to filter values from the input stream
@@ -22,7 +23,7 @@ class input_absinfo(Structure):
 EVIOCGABS_X = 0x80184540
 EVIOCGABS_Y = 0x80184541
 
-class touch
+class touch():
     def __init__(self, width, height):
         # Locate EV_ABS device with correct X and Y dimensions, return with
         # the device handle held open
@@ -32,11 +33,11 @@ class touch
                 # try to read absinfo for x and y axis
                 x_info = input_absinfo()
                 fcntl.ioctl(fd, EVIOCGABS_X, x_info, True)
-                if x_info.minimum == 0 and x.info.maximum == width:
-                    y_info = input_abs_info()
+                if x_info.minimum == 0 and x_info.maximum == width:
+                    y_info = input_absinfo()
                     fcntl.ioctl(fd, EVIOCGABS_X, y_info, True)
-                    if y_info.minimum == 0 and y.info.maximum == height:
-                        close(fd)
+                    if y_info.minimum == 0 and y_info.maximum == height:
+                        fd.close()
                         # found a usable device
                         self.device = device
                         self.width = width
