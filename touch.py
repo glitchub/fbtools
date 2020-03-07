@@ -59,13 +59,12 @@ class touch():
     #        __s32 value;
     #     };
     # See linux/input.h
-    def position(self, timeout=None, flush=False):
+    def position(self, timeout=None, reset=False):
         while True:
 
-            while flush:
-                if self.fd is not None:
-                    self.fd.close()
-                    self.fd = None
+            if reset and self.fd is not None:
+                self.fd.close()
+                self.fd = None
 
             if self.fd is None:
                 self.fd = open(self.device, 'rb')
