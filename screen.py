@@ -201,8 +201,8 @@ class screen(layer):
         if right <= 0: right += self.right
         if bottom <= 0: bottom += self.bottom
 
-        width=right-left+1
-        height=bottom=top+1
+        width = right - left + 1
+        height = bottom - top + 1
 
         bg = bg or self.bg
         stretch = stretch or False
