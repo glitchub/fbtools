@@ -44,7 +44,8 @@ class layer():
     def height(self): return self.bottom-self.top+1
 
     # create layer, note coordinates are relative to the screen image and can't be used directly
-    def __init__(self, left, top, right, bottom, fg, bg, image=None):
+    # default fg is white, default bg is "transparent"
+    def __init__(self, left, top, right, bottom, fg=None, bg=None, image=None):
         self.left = left
         self.top = top
         self.right = right
@@ -103,7 +104,7 @@ class screen(layer):
     def border(self, width, color=None):
         super().border(width, color)
 
-    # Merge layer onto screen
+    # Write layer to screen
     def merge(self, l):
         g = Geometry(0, 0, l.left, l.top) # an offset, see http://www.graphicsmagick.org/Magick++/Geometry.html
         self.img.composite(l.img, g, CompositeOperator.OverCompositeOp)
@@ -128,7 +129,7 @@ class screen(layer):
         if bottom <= 0: bottom += self.bottom
 
         # create the text layer
-        l = layer(left, top, right, bottom, fg or self.fg, bg or "transparent")
+        l = layer(left, top, right, bottom, fg=fg, bg=bg)
 
         # convert text to list of lines
         text=[s.expandtabs() for s in text.splitlines()]
@@ -208,7 +209,8 @@ class screen(layer):
         stretch = stretch or False
 
         if rgb:
-            l = layer(top, left, right, bottom, None, bg, image = Image(Blob(rgb), Geometry(width, height), 8, "RGB"))
+            img = Image(Blob(rgb), Geometry(width, height), 8, "RGB"))
+            l = layer(top, left, right, bottom, image = img)
         elif file:
             if file == '-':
                 img = Image(Blob(sys.stdin.buffer.read()))
@@ -220,14 +222,14 @@ class screen(layer):
             if stretch:
                 g.aspect(True)
                 img.scale(g)
-                l = layer(top, left, right, bottom, None, bg, image = img)
+                l = layer(top, left, right, bottom, image = img)
             else:
                 img.scale(g)
-                l = layer(top, left, right, bottom, None, bg)
+                l = layer(top, left, right, bottom)
                 l.img.composite(img, _gravity(gravity or "center"), CompositeOperator.OverCompositeOp)
         else:
             # just use the background color
-            l = layer(top, left, right, bottom, None, bg)
+            l = layer(top, left, right, bottom, bg=bg)
 
         if commit: self.merge(l)
 
