@@ -2,7 +2,7 @@
 # Write UTF-8 text to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import os, sys, getopt, fb, screen
+import os, sys, getopt, fb, screen, touch
 
 usage = """
 Usage:
@@ -54,6 +54,7 @@ except Exception as e:
     quit(2)
 
 f = fb.framebuffer(device)
+t = touch.touch(f.width, f.height)
 screen=screen.screen(width=f.width, height=f.height, fg=fg, bg=bg)
 
 # box is (left, top, right, bottom), each as percentage of the screen dimension
@@ -66,3 +67,4 @@ screen.text(" ".join(args), *textbox, gravity='center', wrap=True, clip=True, po
 screen.text(yes, *yesbox, bg='green', gravity='center', wrap=True, point=point)
 screen.text(no, *nobox, bg='red', gravity='center', wrap=True, point=point)
 f.pack(screen.rgb())
+quit(0) if t.boxes({yesbox:True, nobox:False}) else quit(1)

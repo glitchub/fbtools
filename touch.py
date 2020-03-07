@@ -3,7 +3,7 @@ from __future__ import print_function
 import os, sys, glob, fcntl, struct, select, time
 from ctypes import *
 
-# python2 doesn't support monotonic time, use the wall clock for timeouts
+# python2 monotonic time hack
 if 'monotonic' not in dir(time): time.monotonic=time.time
 
 # See linux/input.h for more information
@@ -50,15 +50,7 @@ class touch():
             fd.close()
         raise Exception("No touch device found")
 
-    # Return touch (x, y) or None if timeout
-    # Event packets from device are 16 bytes in form:
-    #     struct input_event {
-    #        struct timeval time;
-    #        __u16 type;
-    #        __u16 code;
-    #        __s32 value;
-    #     };
-    # See linux/input.h
+    # Return touch (x, y) or None if timeout.
     def position(self, timeout=None, reset=False):
         while True:
 
@@ -66,19 +58,29 @@ class touch():
                 self.fd.close()
                 self.fd = None
 
+            if timeout is not None:
+                if timeout <= 0: return
+                timeout += time.monotonic()
+
             if self.fd is None:
                 self.fd = open(self.device, 'rb')
 
-            expire = None
             press = x_abs = y_abs = None
 
             while True:
 
-                if timeout is not None:
-                    if not expire: expire = time.monotonic() + timeout
-                    s = select.select([self.fd],[],[], max(0, expire-time.monotonic()))
+                if timeout:
+                    s = select.select([self.fd],[],[], max(0, timeout - time.monotonic()))
                     if not s[0]: return None
 
+                # Event packets device are 16 bytes in form:
+                #     struct input_event {
+                #        struct timeval time;
+                #        __u16 type;
+                #        __u16 code;
+                #        __s32 value;
+                #     };
+                # We ignore the timestamps.
                 type, code, value = struct.unpack("8xHHi", self.fd.read(16))
 
                 if type == 0:
@@ -90,3 +92,20 @@ class touch():
                     x_abs = value
                 elif type == 3 and code == 1:
                     y_abs = value
+
+    # Given dict of box:value, return value for a touch within the box. A box
+    # defines an area in form [x1, y1, x2, y2].
+    def boxes(self, boxes, timeout=None):
+        if timeout is not None:
+            timeout += time.monotonic()
+
+        while True:
+            remain = None
+            if timeout:
+                remain=time.monotonic-timeout
+                if remain <= 0: return None
+            xy = self.position(timeout=remain)
+            if xy is None: return None
+            for box, value in boxes.items():
+                if xy[0] >= box[0] and xy[0] <= box[2] and xy[1] >= box[1] and xy[1] <= box[3]:
+                    return value
