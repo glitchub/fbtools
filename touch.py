@@ -61,13 +61,14 @@ class touch():
     # See linux/input.h
     def position(self, timeout=None, flush=False):
         while True:
-            if self.fd is None:
-                self.fd = open(self.device, 'rb')
 
             while flush:
-                s = select.select([self.fd],[],[],.001)
-                if not s[0]: break
-                self.fd.read(16)
+                if self.fd is not None
+                    self.fd.close()
+                    self.fd = None
+
+            if self.fd is None:
+                self.fd = open(self.device, 'rb')
 
             expire = None
             press = x_abs = y_abs = None
