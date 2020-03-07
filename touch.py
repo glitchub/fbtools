@@ -49,7 +49,7 @@ class touch():
     # Return (x, y) on touch or None on release
     # If timeout, return False after timeout seconds
     # If reset, close and reopen then device
-    def position(self, timeout=None, reset=False, release=False):
+    def position(self, timeout=None, reset=False):
         while True:
             if reset and self.fd is not None:
                 self.fd.close()
@@ -82,7 +82,7 @@ class touch():
 
                 if type == 0:
                     if press == 1:
-                        if xabs is not None and yabs is not None: return (x_abs, y_abs)
+                        if xabs is not None and yabs is not None: return (xabs, yabs)
                     elif press == 0:
                         return None
                     press = xabs = yabs = None
@@ -114,7 +114,6 @@ if __name__ == "__main__":
     t = touch() # without arguments, find first EV_ABS device with X and Y axis
     print("Using device %s, %d x %d" % (t.device, t.width, t.height))
     while True:
-        pos = t.position(timeout=5, release=True)
-        if pos is False: print("Timeout")
-        elif pos is None: print("Release")
-        else: print("Touch at %d x %d" % pos)
+        pos = t.position()
+        if pos : print("Touch at %d x %d" % pos)
+        else: print("Release")
