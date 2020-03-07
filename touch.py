@@ -24,28 +24,28 @@ EVIOCGABS_X = 0x80184540
 EVIOCGABS_Y = 0x80184541
 
 class touch():
-    def __init__(self, width, height):
+    def __init__(self, width=None, height=None):
         # Locate EV_ABS device with correct X and Y dimensions, return with
         # the device handle held open
         for device in glob.glob("/dev/input/event*"):
             fd = open(device, 'rb')
             try:
                 # try to read absinfo for x and y axis
-                x_info = input_absinfo()
-                fcntl.ioctl(fd, EVIOCGABS_X, x_info, True)
-                if x_info.minimum == 0 and x_info.maximum == width:
-                    y_info = input_absinfo()
-                    fcntl.ioctl(fd, EVIOCGABS_Y, y_info, True)
-                    if y_info.minimum == 0 and y_info.maximum == height:
+                x = input_absinfo()
+                fcntl.ioctl(fd, EVIOCGABS_X, x, True)
+                if x.minimum == 0 and (x.maximum == width if width else x.maximum > 64):
+                    y = input_absinfo()
+                    fcntl.ioctl(fd, EVIOCGABS_Y, y, True)
+                    if y.minimum == 0 and (y.maximum == height if height else y.maximum > 64):
                         fd.close()
                         # found a usable device
                         self.device = device
-                        self.width = width
-                        self.height = height
+                        self.width = x.maximum
+                        self.height = y.maximum
                         self.fd = None
                         return
             except OSError:
-                # ioctl not supported
+                # ioctl not supported, advance to next
                 pass
             fd.close()
         raise Exception("No touch device found")
@@ -109,3 +109,10 @@ class touch():
             for box, value in boxes.items():
                 if xy[0] >= box[0] and xy[0] <= box[2] and xy[1] >= box[1] and xy[1] <= box[3]:
                     return value
+
+if __name__ == "__main__":
+    t = touch() # without arguments, find first EV_ABS device with X and Y axis
+    print("Using device %s, %d x %d" % (t.device, t.width, t.height))
+    while True:
+        x, y = t.position()
+        print("Touch at %d x %d" % (x, y))
