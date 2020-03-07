@@ -65,7 +65,7 @@ class touch():
                 self.fd = open(self.device, 'rb')
 
             while flush:
-                s = select.select([self.fd],[],[],0)
+                s = select.select([self.fd],[],[],.001)
                 if not s[0]: break
                 self.fd.read(16)
 
