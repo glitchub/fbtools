@@ -61,36 +61,48 @@ class touch():
 
             if self.fd is None:
                 self.fd = open(self.device, 'rb')
+                os.set_blocking(self.fd.fileno(), False)
 
             press = xabs = yabs = None
 
             while True:
 
-                if timeout:
-                    s = select.select([self.fd],[],[], max(0, timeout-time.monotonic()))
+                # It seems that some event drivers don't support the poll
+                # method correctly. So we read the device in non-blocking mode
+                # and select only when its completely drained.
+                while True:
+                    packet = self.fd.read(16)
+                    if packet:
+                        while len(packet) < 16:
+                            # Partial packet, the rest should arrive soon
+                            os.sched_yield()
+                            r = self.fd.read(16-len(packet))
+                            if r: packet += r
+                        break
+                    s = select.select([self.fd], [], [], None if not timeout else max(0, timeout-time.monotonic()))
                     if not s[0]: return False
 
-                # Event packets device are 16 bytes in form:
+                # An event packet is 16 bytes:
                 #     struct input_event {
-                #        struct timeval time;
+                #        struct timeval time; // 8 bytes
                 #        __u16 type;
                 #        __u16 code;
                 #        __s32 value;
                 #     };
-                # We ignore the timestamps.
-                type, code, value = struct.unpack("8xHHi", self.fd.read(16))
+                # We ignore the time
+                type, code, value = struct.unpack("8xHHi", packet)
 
-                if type == 0:
+                if type == 0: # EV_SYN
                     if press == 1:
                         if xabs is not None and yabs is not None: return (xabs, yabs)
                     elif press == 0:
                         return None
                     press = xabs = yabs = None
-                elif type == 1 and code == 330:
+                elif type == 1 and code == 330: # EV_KEY and BTN_TOUCH
                     press = value
-                elif type == 3 and code == 0:
+                elif type == 3 and code == 0: # EV_ABS and ABS_X
                     xabs = value
-                elif type == 3 and code == 1:
+                elif type == 3 and code == 1: # EV_ABS and ABS_Y
                     yabs = value
 
     # Given dict of box:value, return value for a touch within the box. A box
