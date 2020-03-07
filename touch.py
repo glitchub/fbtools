@@ -79,7 +79,7 @@ class touch():
                     s = select.select([self.fd],[],[], max(0, expire-time.monotonic()))
                     if not s[0]: return None
 
-                type, code, value = struct.unpack("x8HHi", self.fd.read(16))
+                type, code, value = struct.unpack("8xHHi", self.fd.read(16))
 
                 if type == 0:
                     if press and x_abs is not None and y_abs is not None: return (x_abs, y_abs)
