@@ -1,10 +1,6 @@
 # module to provide touch screen support
-from __future__ import print_function
 import os, sys, glob, fcntl, struct, select, time
 from ctypes import *
-
-# python2 monotonic time hack
-if 'monotonic' not in dir(time): time.monotonic=time.time
 
 # See linux/input.h for more information
 
@@ -50,28 +46,29 @@ class touch():
             fd.close()
         raise Exception("No touch device found")
 
-    # Return touch (x, y) or None if timeout or False if release
+    # Return (x, y) on touch or None on release
+    # If timeout, return False after timeout seconds
+    # If reset, close and reopen then device
     def position(self, timeout=None, reset=False, release=False):
         while True:
-
             if reset and self.fd is not None:
                 self.fd.close()
                 self.fd = None
 
             if timeout is not None:
-                if timeout <= 0: return None
+                if timeout <= 0: return False
                 timeout += time.monotonic()
 
             if self.fd is None:
                 self.fd = open(self.device, 'rb')
 
-            press = x_abs = y_abs = None
+            press = xabs = yabs = None
 
             while True:
 
                 if timeout:
-                    s = select.select([self.fd],[],[], max(0, timeout - time.monotonic()))
-                    if not s[0]: return None
+                    s = select.select([self.fd],[],[], max(0, timeout-time.monotonic()))
+                    if not s[0]: return False
 
                 # Event packets device are 16 bytes in form:
                 #     struct input_event {
@@ -84,16 +81,17 @@ class touch():
                 type, code, value = struct.unpack("8xHHi", self.fd.read(16))
 
                 if type == 0:
-                    if press and x_abs is not None and y_abs is not None: return (x_abs, y_abs)
-                    press = x_abs = y_abs = None
-                elif type == 1 and code == 330 and value == 0:
-                    if release: return False # return False if release enabled
-                elif type == 1 and code == 330 and value == 1:
-                    press = True
+                    if press == 1:
+                        if xabs is not None and yabs is not None: return (x_abs, y_abs)
+                    elif press == 0:
+                        return None
+                    press = xabs = yabs = None
+                elif type == 1 and code == 330:
+                    press = value
                 elif type == 3 and code == 0:
-                    x_abs = value
+                    xabs = value
                 elif type == 3 and code == 1:
-                    y_abs = value
+                    yabs = value
 
     # Given dict of box:value, return value for a touch within the box. A box
     # defines an area in form [x1, y1, x2, y2].
@@ -117,6 +115,6 @@ if __name__ == "__main__":
     print("Using device %s, %d x %d" % (t.device, t.width, t.height))
     while True:
         pos = t.position(timeout=5, release=True)
-        if pos is None: print("Timeout")
-        elif pos is False: print("Release")
+        if pos is False: print("Timeout")
+        elif pos is None: print("Release")
         else: print("Touch at %d x %d" % pos)
