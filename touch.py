@@ -63,7 +63,7 @@ class touch():
         while True:
 
             while flush:
-                if self.fd is not None
+                if self.fd is not None:
                     self.fd.close()
                     self.fd = None
 
