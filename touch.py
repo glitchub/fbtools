@@ -50,6 +50,7 @@ class touch():
     # If timeout, return False after timeout seconds
     # If reset, close and reopen then device
     def position(self, timeout=None, reset=False):
+        poll=None
         while True:
             if reset and self.fd is not None:
                 self.fd.close()
@@ -67,8 +68,10 @@ class touch():
             while True:
 
                 if timeout:
-                    s = select.select([self.fd],[],[], max(0, timeout-time.monotonic()))
-                    if not s[0]: return False
+                    if not poll:
+                       poll = select.poll()
+                       poll.register(self.fd, select.POLLIN)
+                    if not poll.poll(max(0, timeout-time.monotonic()),1): return False
 
                 # Event packets device are 16 bytes in form:
                 #     struct input_event {
@@ -111,9 +114,10 @@ class touch():
                     return value
 
 if __name__ == "__main__":
-    t = touch() # without arguments, find first EV_ABS device with X and Y axis
+    t = touch() # find first EV_ABS device with an X and Y axis
     print("Using device %s, %d x %d" % (t.device, t.width, t.height))
     while True:
         pos = t.position()
-        if pos : print("Touch at %d x %d" % pos)
-        else: print("Release")
+        if pos : print("%d x %d" % pos)
+        elif pos is None: print("Release")
+        else: print("Timeout")
