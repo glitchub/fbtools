@@ -21,8 +21,8 @@ Options are:
     -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
     -m                      - text margin in pixels, default is 10
     -s point                - font point size, default is 20
-    -w                      - wrap text to fit
-    -x                      - clip text to fit (otherwise may render partial characters)
+    -w                      - don't wrap text to fit
+    -x                      - don't clip text to fit (may render partial characters)
 
 Font names "m" and "p" will select built-in monospaced or proportional fonts.
 The default font is "m".
@@ -43,8 +43,8 @@ font = None
 device = "/dev/fb0"
 margin = 10
 border = 0
-wrap = False
-clip = False
+wrap = True
+clip = True
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxy")
@@ -60,8 +60,8 @@ try:
         elif opt == "-m": margin = int(arg)
         elif opt == "-r": pass # legacy
         elif opt == "-s": point = int(arg)
-        elif opt == "-w": wrap = True
-        elif opt == "-x": clip = True
+        elif opt == "-w": wrap = not wrap
+        elif opt == "-x": clip = not wrap
         elif opt == "-y": pass # legacy
         else: raise Exception("Invalid option '%s'" % opt)
 
