@@ -35,7 +35,7 @@ class touch():
                 fcntl.ioctl(fd, EVIOCGABS_X, x_info, True)
                 if x_info.minimum == 0 and x_info.maximum == width:
                     y_info = input_absinfo()
-                    fcntl.ioctl(fd, EVIOCGABS_X, y_info, True)
+                    fcntl.ioctl(fd, EVIOCGABS_Y, y_info, True)
                     if y_info.minimum == 0 and y_info.maximum == height:
                         fd.close()
                         # found a usable device
@@ -79,7 +79,7 @@ class touch():
                     s = select.select([self.fd],[],[], max(0, expire-time.monotonic()))
                     if not s[0]: return None
 
-                time, type, code, value = struct.unpack("IHHI", self.fd.read(16))
+                type, code, value = struct.unpack("x8HHi", self.fd.read(16))
 
                 if type == 0:
                     if press and x_abs is not None and y_abs is not None: return (x_abs, y_abs)
