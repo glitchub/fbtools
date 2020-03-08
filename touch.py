@@ -20,11 +20,11 @@ EVIOCGABS_X = 0x80184540
 EVIOCGABS_Y = 0x80184541
 
 class touch():
-    def __init__(self, width=None, height=None):
+    def __init__(self, width=None, height=None, device=None):
         # Locate EV_ABS device with correct X and Y dimensions, return with
         # the device handle held open
-        for device in glob.glob("/dev/input/event*"):
-            fd = open(device, 'rb')
+        for td in glob.glob(device if device else "/dev/input/event*"):
+            fd = open(td, 'rb')
             try:
                 # try to read absinfo for x and y axis
                 x = input_absinfo()
@@ -35,7 +35,7 @@ class touch():
                     if y.minimum == 0 and (y.maximum == height if height else y.maximum > 64):
                         fd.close()
                         # found a usable device
-                        self.device = device
+                        self.device = td
                         self.width = x.maximum
                         self.height = y.maximum
                         self.fd = None
@@ -79,7 +79,7 @@ class touch():
                             r = self.fd.read(16-len(packet))
                             if r: packet += r
                         break
-                    s = select.select([self.fd], [], [], None if not timeout else max(0, timeout-time.monotonic()))
+                    s = select.select([self.fd], [], [], max(0, timeout-time.monotonic()) if timeout else None)
                     if not s[0]: return False
 
                 # An event packet is 16 bytes:
@@ -107,26 +107,30 @@ class touch():
 
     # Given dict of box:value, return value for a touch within the box. A box
     # defines an area in form [x1, y1, x2, y2].
-    def boxes(self, boxes, timeout=None):
-        if timeout is not None:
-            timeout += time.monotonic()
-
+    def select(self, boxes, timeout=None):
+        if timeout: timeout += time.monotonic()
         while True:
-            remain = None
-            if timeout:
-                remain=time.monotonic-timeout
-                if remain <= 0: return None
-            xy = self.position(timeout=remain)
-            if xy is None: return None
-            for box, value in boxes.items():
-                if xy[0] >= box[0] and xy[0] <= box[2] and xy[1] >= box[1] and xy[1] <= box[3]:
-                    return value
+            xy = self.position(timeout = max(0, timeout-time.monotonic()) if timeout else None)
+            if xy is False: return False # timeout
+            if xy:
+                for box, value in boxes.items():
+                    if xy[0] >= box[0] and xy[0] <= box[2] and xy[1] >= box[1] and xy[1] <= box[3]:
+                        return value
+
+    # Return true when touch is released, or false on timeout
+    def release(self, timeout=None):
+        if timeout: timeout += time.monotonic()
+        while True:
+            xy = self.position(timeout = max(0, timeout-time.monotonic()) if timeout else None)
+            if xy == None: return True      # release
+            if xy == False: return False    # timeout
+
 
 if __name__ == "__main__":
-    t = touch() # find first EV_ABS device with an X and Y axis
+    t = touch() # Find first EV_ABS device with an X and Y axis. We assume it has BTN_TOUCH.
     print("Using device %s, %d x %d" % (t.device, t.width, t.height))
     while True:
-        pos = t.position()
+        pos = t.position(timeout=5)
         if pos : print("%d x %d" % pos)
         elif pos is None: print("Release")
         else: print("Timeout")

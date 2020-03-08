@@ -55,31 +55,11 @@ class layer():
         self.img = Image(Geometry(self.width, self.height), Color(self.bg)) if image is None else image
 
     # Add a border of specified width and style
-    def border(self, width, color):
-        self.img.strokeWidth(width)
+    def border(self, width=None, color=None):
+        self.img.strokeWidth(width or 1)
         self.img.strokeColor(color or self.fg)
         self.img.fillColor("transparent")
         self.img.draw(DrawableRectangle(0, 0, self.width-1, self.height-1))
-
-    # Add "button pressed" border
-    def pressed(self):
-        self.img.strokeWidth(1)
-        self.img.strokeColor("#444")
-        self.img.draw(DrawableLine(0, 0, self.width-1, 0))
-        self.img.draw(DrawableLine(0, 0, 0, self.height-1))
-        self.img.strokeColor("#CCC")
-        self.img.draw(DrawableLine(0, self.height-1, self.width-1, self.height-1))
-        self.img.draw(DrawableLine(self.width-1, 0, self.width-1, self.height-1))
-
-    # Add "button released" border
-    def released(self):
-        self.img.strokeWidth(1)
-        self.img.strokeColor("#CCC")
-        self.img.draw(DrawableLine(0, 0, self.width-1, 0))
-        self.img.draw(DrawableLine(0, 0, 0, self.height-1))
-        self.img.strokeColor("#444")
-        self.img.draw(DrawableLine(0, self.height-1, self.width-1, self.height-1))
-        self.img.draw(DrawableLine(self.width-1, 0, self.width-1, self.height-1))
 
     # return raw rgb image data
     def rgb(self):

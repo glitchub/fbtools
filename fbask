@@ -2,69 +2,38 @@
 # Write UTF-8 text to frame buffer, works with python 2 or 3
 
 from __future__ import print_function
-import os, sys, getopt, fb, screen, touch
+import os, sys, getopt, fbui
 
 usage = """
 Usage:
 
-    fbtext [options] "question"
+    fbask [options] "question"
 
 Ask a question, get an answer. Exit status is 0 for Yes, 1 for No, anything else for error.
 
 Options are:
 
-    -b width                - screen border width, default is 0 (no border)
-    -c [fg][:bg]            - foreground and background colors, default is "white:black"
-    -d device               - framebuffer device, default is "/dev/fb0"
     -n "string"             - string for "No"
-    -s point                - font point size, default is "20"
     -y "string"             - sring for "Yes"
 """
 
-__here__ = os.path.dirname(__file__) or '.'
-
-# set defaults
-bg = "black"
-border = 0
-device = "/dev/fb0"
-fg = "white"
 no = "No"
-point = 20
 yes = "Yes"
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"c:d:n:s:y:")
+    opts, args = getopt.getopt(sys.argv[1:],":n:y:")
 
     if not args: raise Exception("Must provide a question.")
 
     for opt, arg in opts:
-        if   opt == "-b": border = int(arg)
-        elif opt == "-c":
-            fg, bg = (arg.lower()+":").split(":")[:2]
-            if not bg: bg = "black"
-        elif opt == "-d": device = arg
-        elif opt == "-n": no = arg
-        elif opt == "-s": point = int(arg)
-        elif opt == "-y": yes = arg
+        if opt == "-n": notext = arg
+        elif opt == "-y": yestext = arg
         else: raise Exception("Invalid option '%s'" % opt)
-
 
 except Exception as e:
     print (str(e),"\n",usage,file = sys.stderr)
     quit(2)
 
-f = fb.framebuffer(device)
-t = touch.touch(f.width, f.height)
-screen=screen.screen(width=f.width, height=f.height, fg=fg, bg=bg)
-
-# box is (left, top, right, bottom), each as percentage of the screen dimension
-textbox = screen.box(10, 10, 90, 55)
-yesbox =  screen.box(20, 60, 45, 80)
-nobox =   screen.box(55, 60, 80, 80)
-
-if border: screen.border(border)
-screen.text(" ".join(args), *textbox, gravity='center', wrap=True, clip=True, point=point)
-screen.text(yes, *yesbox, bg='green', gravity='center', wrap=True, point=point)
-screen.text(no, *nobox, bg='red', gravity='center', wrap=True, point=point)
-f.pack(screen.rgb())
-quit(0) if t.boxes({yesbox:True, nobox:False}) else quit(1)
+ui = fbui.ui()
+answer = ui.ask(" ".join(args), yestext=yestext, notext=notext)
+quit(0 if answer else 1)
