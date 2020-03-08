@@ -39,13 +39,13 @@ class ui():
     def update(self):
         self.fb.pack(self.screen.rgb)
 
-    def ask(self, question="Please select Yes or No", yestext="Yes", notext="No", yescolor="green", nocolor="red"):
+    def ask(self, question="Please select Yes or No", yestext=None, notext=None, yescolor=None, nocolor=None):
         textbox = self.screen.box(10, 10, 90, 55)
         yesbox =  self.screen.box(20, 60, 45, 80)
         nobox =   self.screen.box(55, 60, 80, 80)
         self.screen.text(question, *textbox, gravity='center')
-        yes = button(self.screen, yestext, *yesbox, bg=yescolor)
-        no = button(self.screen, notext, *nobox, bg=nocolor)
+        yes = button(self.screen, yestext or "Yes", *yesbox, bg=yescolor or "green")
+        no = button(self.screen, notext or "No", *nobox, bg=nocolor or "red")
         self.update()
         selection = self.touch.select({yesbox:True, nobox:False})
         yes.pressed() if selection else no.pressed()

@@ -17,8 +17,8 @@ Options are:
     -y "string"             - sring for "Yes"
 """
 
-no = "No"
-yes = "Yes"
+notext = "No"
+yestext = "Yes"
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],":n:y:")
