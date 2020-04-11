@@ -1,36 +1,58 @@
-Frame buffer manipulation tools for linux, supporting frame buffer depths 16
-(565), 24 (RGB), and 32 (ARGB).
+Various Python3-based framebuffer manipulation tools and user interface
+utilities with touch screen support.
 
-Files are:
+Note most of this code requires PIL to be installed, on Debian-derived systems
+try 'apt install python3-pil'.
 
-    fbclear: a python script that clears the frame buffer with an optional
-    color.
+After download you must run 'make' to build the framebuffer library. Then try
+"./fbquery" to test it, it should report something like:
 
-    fbimage: a python script that decodes and writes a graphics image file to
-    the frame buffer
+    Device:      /dev/fb0
+    Width:       1920
+    Height:      1080
+    Bytes/pixel: 4
+    Red shift:   16
+    Green shift: 8
+    Blue shift:  0
 
-    fbtext: a python script that reads text from a file or stdin, formats and
-    writes it to the frame buffer.
+Utlities:
 
-    fb.py: a python module that provides the core functionality of fbclear,
-    fbimage, and fbtext.
+    fbcap               - write current framebuffer contents to specified image file
 
-    fbquery.c: a utility program that reports some potentially interesting
-    frame buffer info.
+    fbclear             - clear the framebuffer to specified color
 
-    fbput.c: a utility program that copies raw RGB data from stdin or file to
-    the frame buffer.
+    fbdialog            - show a dialog with 1 to 5 buttons via framebuffer,
+                          wait for one to be touched
 
-    fb.c: a library that provides the access to the raw frame buffer device. It
-    is compiled as a .so, invoked by fb.py, fbput and fbquery.
+    fbimage             - write an image file to framebuffer
 
-Run 'make' to build the eexecutables, and the fb.bin shared library.
+    fbmenu              - show a menu with 2 to 6 selections via framebuffer,
+                          wait for one to be touched (supports checkboxes and
+                          radio buttons).
 
-The python code is version agnostic and will worh with python2 or python3,
-although the default is python3.
+    fbquery             - print framebuffer information
 
-Note it requires the pgmagick module to be installed for whichever version of
-python will be used, e.g. via 'apt install python3-pgmagick', 'pip install
-pgmagick', etc.
+    fbtext              - write arbitrary text to the framebuffer
 
-All scripts and programs can be run with -h option to print help.
+    vtbind              - bind or unbind a virtual terminal from the underlying
+                          framebuffer
+
+Other files:
+
+    DejaVuSansMono.ttf  - default font used by fbscreen.py
+
+    fb.c                - source for fb.bin, framebuffer I/O library
+
+    fb.py               - fb.bin interface module
+
+    fbscreen.py         - screen image composition and manipulation module
+
+    touch.py            - touch device access module
+
+Documentation:
+
+    README              - this file
+
+    README.style        - definition of the "style" parameter used by various tools
+
+    README.color        - definition of the "color" parameter used by various tools

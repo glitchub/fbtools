@@ -1,0 +1,181 @@
+#!/usr/bin/python3
+import os, sys, getopt, traceback, fbscreen, touch
+usage = """
+Usage:
+
+    fbmenu [options] [--] "Label1" "Label2" [ ... ["Label8"]]
+
+Display a menu screen with two to eight selectable labels.
+
+Options are:
+
+    -b width                - screen border width, default is 0 (no border)
+    -c [fg:]bg              - screen foreground and background
+    -C [fg:]bg              - label foreground and background
+    -d device               - framebuffer device
+    -f path/to/font         - path to font, default is ./DejaVuSansMono.ttf
+    -i                      - show checkbox buttons with initial value 0 to 255
+    -k                      - don't clear screen on exit
+    -m                      - margin in pixels, default is 10
+    -n                      - show Cancel button
+    -p "Prompt string"      - show prompt string at top
+    -r                      - with -i, enable "radio buttons"
+    -s style                - screen font style, default is ">30<50"
+    -S size                 - label font style, default is whatever was set with -s
+    -t device               - touch event device
+    -x seconds              - timeout after specified seconds
+
+If -i is specified then checkboxes will be used and bits in the value 0 to 255
+corresponding to the initially checked labels (bit 0 is the first label, bit 7
+is the eigth label). This also adds an OK button at the bottom of the
+screen, touching OK prints a number 0 to 255 with bits set corresponding the
+the checked labels.
+
+When radio buttons are enabled, selecting any checkbox disables all the others.
+
+If -i is not specified then checkboxes are not enabled, touching any label
+immediately prints a number 0 to 128 with bit set corresponding the the
+selected label.
+
+On cancel or timeout, prints nothing. On error, exit status will be non-zero.
+"""
+
+cls = True
+bg = None
+fg = None
+bbg = None
+bfg = None
+font = None
+style = ">30<50"
+bstyle = None
+fbdev = None
+touchdev = None
+border = 0
+timeout = None
+margin = 10
+prompt = None
+showcan = False
+checkboxes = None
+radio = False
+
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:C:d:f:i:km:np:rs:S:t:x:")
+
+    if not 2 <= len(args) <= 8: raise Exception("Must specify two to six selection labels")
+
+    for opt, arg in opts:
+        if   opt == "-b": border = int(arg)
+        elif opt == "-c": fg, bg = (i or None for i in ([None]+arg.split(':'))[-2:])
+        elif opt == "-C": bfg, bbg = (i or None for i in ([None]+arg.split(':'))[-2:])
+        elif opt == "-d": fbdev = arg
+        elif opt == "-f": font = arg
+        elif opt == "-i": checkboxes = int(arg)
+        elif opt == "-k": cls = not cls
+        elif opt == "-m": margin = int(arg)
+        elif opt == "-n": showcan = not showcan
+        elif opt == "-p": prompt = arg
+        elif opt == "-r": radio = not radio
+        elif opt == "-s": style = arg
+        elif opt == "-S": bstyle = arg
+        elif opt == "-t": touchdev = arg
+        elif opt == "-x": timeout = float(arg)
+
+except Exception as e:
+    print (str(e),"\n",usage,file = sys.stderr)
+    quit(1)
+
+screen = fbscreen.Screen(fbdev=fbdev, fg=fg, bg=bg, font=font, style=style, border=border)
+touch = touch.Touch(screen.width, screen.height, device=touchdev)
+margin += border
+
+bars = screen.child(left=margin, top=margin, right=-margin, bottom=-margin)
+
+checkable = checkboxes != None
+div = 4
+if prompt:
+    barheight = (bars.height+div)//(len(args)+1+(checkable or showcan))
+    bars.child(bottom=barheight-div).text(prompt)
+    bartop = barheight
+else:
+    barheight = bars.height//(len(args)+(checkable or showcan))
+    bartop = 0
+
+buttons=[]
+touchable={}
+for b in range(len(args)):
+    k = ([None,None,None,]+args[b].split(':',3))[-4:] # split into [font, fg, bg, label]
+    # create the label bar
+    bar = bars.child(top=bartop, bottom=bartop+barheight-div, fg=k[1] or bfg, bg=k[2] or bbg, style=k[0] or bstyle, border=1)
+    if checkboxes is None:
+        # just populate with label text, selected will be the layer
+        buttons.append(bar.text(k[3] or chr(b+65)))
+        touchable[buttons[-1].box()]=buttons[-1]
+    else:
+        # put checkbox text to the right
+        bar.child(left=barheight, top=1, right=-1, bottom=-1).text(k[3] or chr(b+65))
+        # populate the botton text, selected will be [state, layer]
+        checked = checkboxes & 1<<b
+        buttons.append([checked, bar.child(left=barheight*.1, top=barheight*.1, right=(barheight*.9)-div, bottom=(barheight*.9)-div, border=1, fg=screen.fg, bg=screen.bg, style="0@c")])
+        if checked:
+            buttons[-1][1].text("X")
+        else:
+            buttons[-1][1].merge()
+        touchable[buttons[-1][1].parent.box()]=buttons[-1]
+    bartop += barheight
+
+ok=None
+cancel=None
+if checkable:
+    # Checkable implies an OK button
+    ok = bars.child(left=.2 if showcan else .8,  top=-barheight*.9, right=.4 if showcan else None, bottom=-barheight*.1, border=1, fg="white", bg="green", style="10").text("OK")
+    touchable[ok.box()]=ok
+if showcan:
+    cancel = bars.child(left=.6 if checkable else .8,  top=-barheight*.9, right=.8 if checkable else None, bottom=-barheight*.1, border=1, fg="white", bg="red", style="10").text("Cancel")
+    touchable[cancel.box()]=cancel
+
+screen.display()
+
+while True:
+    # wait for touch or timeout
+    selected = touch.select(touchable, timeout=timeout)
+    if not selected: break # timeout
+
+    if checkable and selected in buttons:
+        # toggle checkbox, selected is list of [state, layer]
+        selected[0] = not selected[0]
+        if selected[0]:
+            selected[1].clear().border().text("X")
+        else:
+            selected[1].clear().border().merge()
+        if radio:
+            for b in buttons:
+                if b != selected and b[0]:
+                    b[0] = False
+                    b[1].clear().border().merge()
+        screen.display()
+    else:
+        # dim non-checkbox to show selected
+        selected.sibling(bg="black60").merge()
+        screen.display()
+        # wait for release
+        touch.release()
+        if not cls:
+            # restore original button
+            selected.merge()
+            screen.display()
+        if selected is cancel: break
+        if selected is ok:
+            # return binary checkbox state
+            checked = 0
+            for b in range(len(buttons)):
+                if buttons[b][0]: checked |= 1<<b
+        else:
+            # else return selected label as a bit
+            checked = 1 << buttons.index(selected)
+        print(checked)
+        break
+
+if cls:
+    screen.clear("black")
+    screen.display()

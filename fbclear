@@ -1,9 +1,6 @@
 #!/usr/bin/python3
-# Clear frame buffer, works with python 2 or 3
-
-from __future__ import print_function
-import os, sys, getopt
-from fb import fbclear
+# Clear frame buffer
+import os, sys, getopt, fb, fbscreen
 
 usage="""
 Usage:
@@ -25,8 +22,8 @@ try:
 
     opts, args = getopt.getopt(sys.argv[1:],"c:d:")
     for opt, arg in opts:
-        if   opt == "-c": color=arg.lower()
-        elif opt == "-d": device=arg
+        if   opt == "-c": color = arg.lower()
+        elif opt == "-d": device = arg
         else: raise Exception("Invalid option '%s'" % opt)
     if len(args): raise Exception("Unexpected argument '%s'" % ' '.join(args))
 
@@ -35,4 +32,4 @@ except Exception as e:
     print (str(e),usage, file=sys.stderr)
     quit(1)
 
-fbclear(color, device)
+fbscreen.Screen(fbdev=device, bg=color).display()

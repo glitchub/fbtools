@@ -1,91 +1,66 @@
 #!/usr/bin/python3
-# Write UTF-8 text to frame buffer, works with python 2 or 3
-
-from __future__ import print_function
-import os, sys, getopt
-from fb import fbtext
+import os, sys, getopt, fbscreen
 
 usage = """
 Usage:
 
-    fbtext [options] text.file
+    fbtext [options] [--] ["arbitrary text"]
 
-Write arbitrary multi-line UTF8 text to frame buffer.
+Write arbitrary text to frame buffer.
 
 Options are:
 
-    -b width                - screen border width, default is "0" (no border)
-    -c [fg][:bg]            - foreground and background colors, default is "white:black"
-    -d device               - framebuffer device, default is "/dev/fb0"
-    -f path/to/font         - path to font
-    -g direction            - text gravity, one of "nw", "n", "ne", "w", "c", "e", "sw", "s", or "se", default is "nw"
-    -m                      - text margin in pixels, default is "10"
-    -r char                 - reference character, default is "M"
-    -s point                - font point size, default is "20"
-    -w                      - wrap text to page width
-    -x                      - trim text to page width
-    -y                      - trim text to page height
+    -b width                - screen border width, default is 0 (no border)
+    -c [fg:]bg              - foreground and background colors
+    -d device               - framebuffer device
+    -f path/to/font         - specify font file (should be monospaced)
+    -m                      - text margin in pixels, default is 10
+    -s style                - the font style, default is "@c".
 
-Font names "m" and "p" will select built-in monospaced or proportional fonts.
-The default font is "m".
+If no text is provided then it will be read from stdin.
 
--w, -x, and -y operations are based on size of reference character specified by
--r. These should be avoided when using proportional fonts.
-
-If the text file name is '-' then read text from stdin.
+If specified background color is "transparent" (or specifies a transparent
+alpha), then existing framebuffer content will be overlayed.
 """
 
-__here__ = os.path.dirname(__file__) or '.'
-
-# set defaults
-bg = None
-fg = None
-gravity = "nw"
-point = 20
-font = None
-device = "/dev/fb0"
-margin = 10
 border = 0
-wrap = False
-xtrim = False
-ytrim = False
-debug = False
-reference = 'M'
+fg = None
+bg = None
+device = None
+font = None
+margin = 10
+style = None
 
 try:
-
-    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:r:s:wxyz")
-
-    if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    input = args[0]
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:f:g:m:s:wx")
 
     for opt, arg in opts:
         if   opt == "-b": border = int(arg)
-        elif opt == "-c": fg,bg = (arg.lower()+":").split(":")[:2]
+        elif opt == "-c": fg, bg = (i or None for i in ([None]+arg.split(':'))[-2:])
         elif opt == "-d": device = arg
         elif opt == "-f": font = arg
-        elif opt == "-g": gravity = arg.lower()
         elif opt == "-m": margin = int(arg)
-        elif opt == "-r": reference = arg
-        elif opt == "-s": point = int(arg)
-        elif opt == "-w": wrap = True
-        elif opt == "-x": xtrim = True
-        elif opt == "-y": ytrim = True
-        elif opt == "-z": debug = True
+        elif opt == "-s": style = arg
         else: raise Exception("Invalid option '%s'" % opt)
 
-    gravity = {"northwest":"nw","north":"n","northeast":"ne","west":"w","center":"c","east":"e","southwest":"sw","south":"s","southeast":"se"}.get(gravity,gravity)
-    if not gravity in ("nw","n","ne","w","c","e","sw","s","se"): raise Exception("Invalid gravity '%s'" % gravity)
-
-    if not font or font[:1] == "m": font = __here__+"/WenQuanYiMicroHeiMono.ttf"
-    elif font[:1] == "p": font=__here__+"/WenQuanYiMicroHei.ttf"
-    if not os.path.isfile(font): raise Exception("Can't find font %s" % font)
-
 except Exception as e:
-
     print (str(e),"\n",usage,file = sys.stderr)
     quit(1)
 
-fbtext(input, bg = bg, fg = fg, gravity = gravity, point = point, font = font,
-       device = device, margin = margin, border = border, wrap = wrap, xtrim =
-       xtrim, ytrim = ytrim, debug = debug, reference = reference)
+if not args or (len(args)==1 and args[0] == "-"):
+    # no text or legacy "-", read from stdin
+    text = str(sys.stdin.buffer.read(),"utf8")
+else:
+    # else use command line
+    text = " ".join(args)
+
+margin += border
+
+# Init the screen
+screen = fbscreen.Screen(fbdev=device, fg=fg, bg=bg, font=font, style=style, border=border)
+
+# Add the text
+screen.child(left=margin, top=margin, right=-margin, bottom=-margin).text(text).merge()
+
+# Show it
+screen.display()

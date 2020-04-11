@@ -1,0 +1,29 @@
+Colors can be specified as:
+
+    One of "black", "silver", "gray" or "grey", "white", "maroon", "red",
+    "purple", "fuschia", "green", "lime", "olive", "yellow", "navy", "blue",
+    "teal", or "aqua".  The name is not case sensitive. Alpha will be 255,
+    i.e. no transparency.
+
+    One of the names above, appended with two decimal digits defining the alpha
+    as a percentage (00 to 99%). A color ending with "00" is fully transparent,
+    a color ending with "99" is almost completely opaque.
+
+    "#RRGGBB", where RR, GG, and BB are hexadecimal values 00 to FF,
+    corresponding to decimal values 0 to 255, representing the saturation of
+    the red, green, and blue color components. Alpha will be 255.
+
+    "#RRGGBBAA", same as above but with additional AA representing the alpha
+    component.
+
+    "#RGB", where R, G, and B are hexadecimal values 0 to F, scaled to decimal
+    values 0 to 255 (i.e. multiplied by 17). Alpha will be 255.
+
+    '#RGBA', same as above but with additional A representing the alpha
+    component.
+
+    "transparent", an alias for "#00000000".
+
+#F3C, #F3CF, #FF33CC, and #FF33CCFF are all the same.
+
+See https://en.wikipedia.org/wiki/Web_colors for more information.

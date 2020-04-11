@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+import os, sys, getopt, fb, PIL.Image as Image
+
+usage="""
+Usage:
+
+    fbcap [options] filename
+
+Capture frame buffer to specified image file. The file name must specify the
+image type, i.e. ends with ".png", ".jpg", ".gif", etc.
+
+Options are:
+
+    -d device       - framebuffer device, default is "/dev/fb0"
+"""
+
+device="/dev/fb0"
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"d:")
+    for opt, arg in opts:
+        if opt == "-d": device = arg
+        else: raise Exception("Invalid option '%s'" % opt)
+    if len(args) != 1: raise Exception("Expected a filename")
+
+except Exception as e:
+    print (str(e),usage, file=sys.stderr)
+    quit(1)
+
+f = fb.Framebuffer(device=device)
+im = Image.frombuffer("RGB",(f.width, f.height),f.unpack(), "raw", "RGB", 0, 1)
+print("Writing %s..." % args[0])
+im.save(args[0])

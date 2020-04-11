@@ -1,48 +1,59 @@
 #!/usr/bin/python3
-# Write image to frame buffer, works with python 2 or 3
 
-from __future__ import print_function
-import sys, getopt
-from fb import fbimage
+# Write an image to frame buffer
+import sys, getopt, fbscreen
 
 usage="""
 Usage:
 
-    fbimage [options] image.file
+    fbimage [options] [image.file]
 
 Decode an image file and output to frame buffer.
 
 Options are:
 
-    -c color                - background color, default is "black"
+    -b width                - screen border width, default is 0 (no border)
+    -c [fg:]bg              - foreground and background colors, default is "white:black"
     -d device               - framebuffer device, default is "/dev/fb0"
     -m width                - margin width, default is "0" (no margin)
-    -s                      - stretch the image to fit, default is scale to fit.
+    -s                      - stretch the image to fit
 
-If image.file is "-" then read the image from stdin.
+If image.file is not specified then the image will be read from stdin.
+
+If background color is "transparent" then existing framebuffer content will be
+overlayed.
 """
 
-color="black"
+fg=None
+bg=None
+device=None
 margin=0
+border=0
 stretch=False
-device="/dev/fb0"
-debug=False
 
 try:
 
-    opts, args = getopt.getopt(sys.argv[1:],"c:d:sm:z")
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:d:m:s")
     for opt, arg in opts:
-        if   opt == "-c": color=arg.lower()
-        elif opt == "-d": device=arg
-        elif opt == "-m": margin=int(arg)
-        elif opt == "-s": stretch=True
-        elif opt == "-z": debug=True
-        else: raise Exception("Invalid option '%s'" % opt)
-    if len(args) != 1: raise Exception("Expected a file name (or '-')")
-    image = args[0]
+        if   opt == "-b": border = int(arg)
+        elif opt == "-c": fg, bg = (i or None for i in ([None]+arg.split(':'))[-2:])
+        elif opt == "-d": device = arg
+        elif opt == "-m": margin = int(arg)
+        elif opt == "-s": stretch = True
+    if len(args) > 1: raise Exception("Unexpected argument")
+    filename = args[0] if args else "-"
 
 except Exception as e:
     print (str(e), usage, file=sys.stderr)
     quit(1)
 
-fbimage(image, color=color, device=device, margin=margin, stretch=stretch, debug=debug)
+margin += border
+
+# Create a screen
+screen = fbscreen.Screen(fbdev=device, fg=fg, bg=bg, border=border)
+
+# Load image between margins
+screen.child(left=margin, top=margin, right=-margin, bottom=-margin).image(filename, stretch=stretch).merge()
+
+# Update the framebuffer
+screen.display()

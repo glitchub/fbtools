@@ -1,0 +1,132 @@
+#!/usr/bin/python3
+import os, sys, getopt, traceback, fbscreen, touch
+usage = """
+Usage:
+
+    fbdialog [options] [--] ["Prompt"] ["Button 1" [ ... "Button 5"]]]
+
+Display a dialog screen with a prompt and up to five buttons. Each label must
+specified as a single argument in format "[[[style:]fg:]bg:]text". Label text
+may contain "\\n" and other escape sequences.
+
+If no labels are defined then the default is a single "OK" button.
+
+The prompt is specified either as the first argument or with -p.
+
+Options are:
+
+    -b width                - screen border width, default is 0 (no border)
+    -c [fg:]bg              - screen foreground and background
+    -C [fg:]bg              - button foreground and background
+    -d device               - framebuffer device
+    -f path/to/font         - path to font
+    -k                      - don't clear screen on exit
+    -m                      - screen margin in pixels, default is 50
+    -p "Prompt text"        - Alternate way to specify prompt
+    -s style                - screen font style, default is ">20"
+    -S style                - button font style, default is "8"
+    -t device               - touch event device
+    -x seconds              - timeout after specified seconds
+
+If button press, prints the button number "1" to "5" to stdout and exits with
+0. If timeout, exits with 0 without printing anything. If error, exits with
+non-zero.
+"""
+
+cls = True
+bg = None
+fg = None
+bbg = None
+bfg = None
+font = None
+style = ">20"
+bstyle = "8"
+fbdev = None
+touchdev = None
+prompt = None
+border = 0
+timeout = None
+margin = 50
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"b:c:C:d:f:km:p:s:S:t:x:")
+
+    for opt, arg in opts:
+        if   opt == "-b": border = int(arg)
+        elif opt == "-c": fg, bg = (i or None for i in ([None]+arg.split(':'))[-2:])
+        elif opt == "-C": bfg, bbg = (i or None for i in ([None]+arg.split(':'))[-2:])
+        elif opt == "-d": fbdev = arg
+        elif opt == "-f": font = arg
+        elif opt == "-k": cls = not cls
+        elif opt == "-m": margin = int(arg)
+        elif opt == "-p": prompt = arg
+        elif opt == "-s": style = arg
+        elif opt == "-S": bstyle = arg
+        elif opt == "-t": touchdev = arg
+        elif opt == "-x": timeout = float(arg)
+
+    if prompt is None:
+        if not len(args): raise Exception("Must specify a prompt")
+        prompt = args[0]
+        del args[0]
+
+    if len(args) > 5: raise Exception("Can't specify more than five buttons")
+
+except Exception as e:
+    print (str(e),"\n",usage,file=sys.stderr)
+    quit(1)
+
+
+screen = fbscreen.Screen(fbdev=fbdev, fg=fg, bg=bg, font=font, style=style, border=border)
+touch = touch.Touch(screen.width, screen.height, device=touchdev)
+
+margin += border
+
+# buttons are 20% high, margin+20 pixels from the bottom
+bt = (screen.height*.8)-(margin+20) # button top
+bb = bt+(screen.height*.2) # button bottom
+
+prompt = screen.child(left=margin, top=margin, right=-margin, bottom=bt-margin).text(prompt)
+
+if not args: args=["OK"]
+
+ba = prompt.width / (2*len(args))     # divide prompt width by 2x number of buttons
+bw = prompt.width * .19               # buttons are 19% of width (so, five buttons max)
+buttons=[]                            # list of button layers
+for b in range(len(args)):
+    k = ([None,None,None,]+args[b].split(':',3))[-4:] # split into [font, fg, bg, label]
+    bc = ba * (2*b + 1) + prompt.left # button center at 1st, 3rd, 5th, etc axis
+    bl = bc - (bw/2)                  # button left
+    br = bl + bw                      # button right
+    buttons.append(
+        screen.child(
+            left = bl, top = bt, right = br, bottom = bb,
+            style = k[0] or bstyle,
+            fg = k[1] or bfg or fg,
+            bg = k[2] or bbg or bg, border=1
+        ).text(k[3] or chr(b+65))
+    )
+
+screen.display()
+
+# wait for touch or timeout
+selected = touch.select(dict([b.box(),b] for b in buttons), timeout=timeout)
+
+if selected:
+    # overlay button with 60% black to indicate press
+    selected.sibling(bg="black60").merge()
+    screen.display()
+
+    # wait for release (no timeout!)
+    touch.release()
+
+    if not cls:
+        # restore original button
+        selected.merge()
+        screen.display()
+
+    print(buttons.index(selected)+1)
+
+if cls:
+    screen.clear("black")
+    screen.display()

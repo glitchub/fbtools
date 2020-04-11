@@ -1,0 +1,42 @@
+#!/bin/bash -eu
+
+die() { echo "$*" >&2; exit 1; }
+
+bind=1
+
+while getopts ":ub" o; do case $o in
+    u) bind=0;;
+    b) bind=1;;
+    *) die "\
+Usage:
+
+    bindvt [option] [vt]
+
+Bind or unbind virtual terminal to its frame buffer. 'vt' is a number, i.e. the
+'X' from '/sys/class/vtconsole/vtconX'. If not given, script attempts to find
+one.
+
+Options:
+    -u - unbind
+    -b - bind, this is the default";;
+esac; done
+shift $((OPTIND-1))
+
+((!UID)) || die "Must be root!"
+
+if (($#)); then
+    vt=/sys/class/vtconsole/vtcon$1
+else
+    [[ $(echo /dev/fb*) == /dev/fb0 ]] || die "Can't determine controlling frame buffer, please specify vt"
+    while true; do
+        for vt in /sys/class/vtconsole/vtcon*; do
+            grep -q "frame buffer" $vt/name || continue
+            break 2
+        done
+        die "Can't find a suitable vtconsole, please specify vt"
+    done
+fi
+
+[[ -e $vt ]] || die "No such device $vt"
+((bind)) && echo "Binding $vt" || echo "Unbinding $vt"
+echo $bind > $vt/bind

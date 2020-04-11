@@ -1,6 +1,4 @@
-// Low-level support for framebuffer read/write, because python is waaaay too slow
-
-#include <stdio.h>
+// Framebuffer I/O, because pure python is waaaay too slow
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -8,7 +6,18 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
-#include "fb.h"
+#include <linux/fb.h>
+
+struct fbinfo
+{
+    uint32_t height,    // height must be first (for python)
+             width,     // width must be second (for python)
+             bpp,       // bytes per pixel: 2, 3, or 4. If 2 bytes, then colorspace is 565.
+             red,       // red shift
+             green,     // green shift
+             blue;      // blue shift
+    void   * mmap;      // pointer to frame buffer memory
+};
 
 int fbopen(struct fbinfo *fb, char *device)
 {
@@ -19,14 +28,14 @@ int fbopen(struct fbinfo *fb, char *device)
     if (ioctl(fd, FBIOGET_VSCREENINFO, &vsi) < 0)
     {
         close(fd);
-        return 1;
+        return 2;
     }
 
     if (vsi.bits_per_pixel == 32 && vsi.red.length == 8 && vsi.green.length == 8 && vsi.blue.length == 8)
     {
         // ARGB
         fb->bpp=4;
-    }   
+    }
     else if (vsi.bits_per_pixel == 24 && vsi.red.length == 8 && vsi.green.length == 8 && vsi.blue.length == 8)
     {
         // RGB
@@ -39,10 +48,9 @@ int fbopen(struct fbinfo *fb, char *device)
     } else
     {
         close(fd);
-        errno=ERANGE;
-        return 1;
+        return 3;
     }
-    
+
     fb->height = vsi.yres_virtual;
     fb->width = vsi.xres_virtual;
     fb->red = vsi.red.offset;
@@ -54,8 +62,7 @@ int fbopen(struct fbinfo *fb, char *device)
 
     if (fb->mmap == MAP_FAILED)
     {
-        errno=EFAULT;
-        return 2;
+        return 4;
     }
 
     return 0;
@@ -80,7 +87,7 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
                 *rgb++ = (n >> fb->blue) << 3;
             }
             break;
-        }    
+        }
         case 3:
         {
             uint8_t *p = fb->mmap+(offset*3);
@@ -90,9 +97,9 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
                 *rgb++ = n >> fb->red;
                 *rgb++ = n >> fb->green;
                 *rgb++ = n >> fb->blue;
-            
+
             }
-        }    
+        }
         case 4:
         {
             uint32_t *p = fb->mmap+(offset*4);
@@ -104,7 +111,7 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
                 *rgb++ = n >> fb->blue;
             }
             break;
-        }            
+        }
     }
     return 0;
 }
@@ -149,7 +156,7 @@ int fbpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
                 rgb += 3;
             }
             break;
-        }     
+        }
     }
     return 0;
 }

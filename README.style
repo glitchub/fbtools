@@ -1,0 +1,68 @@
+The font style specifier defines how to fit text into the target area.
+
+The specifier contains one or more tokens, each consisting of a punctuation
+character and some number of digits. Tokens can be separated by spaces,
+although this is not necessary. Token order is irrelevant.
+
+These tokens can only work with monospaced fonts:
+
+    +N  - where N is a number, wrap (or slash) the input text to N columns then
+          set the font size so target area will show all N columns. If there
+          are too many lines to fit then those lines do not appear. The default
+          is "+0", which fits to the longest line provided without wrapping.
+          The "+" is optional when this is the first token in the specifier.
+
+    !   - change the behavior of +N such that ALL lines will fit in the target
+          area. The font size is therefore inversely proportional to the total
+          number of lines, and very long text may be unreadably tiny.
+
+    >N  - where N is a number, constrain the selected font size to allow at
+          least N columns. This prevents the font from being too large.
+
+    <N  - where N is a number, constrain the selected font size to allow at
+          most N columns, this prevents the font from being too small. Lines
+          longer than N will be wrapped or slashed. If there are too many lines
+          to fit then those lines will not appear.
+
+    /   - "Slash" long lines instead of wrapping them.
+
+If a proportional font is used, then this style MUST be specified:
+
+    =N  - where N is a number, set the font point size to N. The supplied text
+          will be displayed exactly as given, if it fits. All other specifiers
+          except '@' will be ignored.
+
+This works with proportional or monospaced fonts:
+
+    @A  - where A is one of "northwest" or "nw", "north" or "n", "northeast or
+          "ne", "west" or "w", "center" or "c", "east" or "e", "southwest" or
+          "sw", "south" or "s", "southeast" or "se" (not case-sensitive). Align
+          the text to the designated corner, side, or center of the text area.
+          The default is "center".
+
+Examples:
+
+0@c     - The default, adjust the text size so the longest line will appear in
+          the target area, and center it. Note that lines that can't fit in the
+          target area will not appear, and one of these could been the line
+          that was used to set the size to begin with.
+
+50      - Wrap the text to 50 columns and center it.
+
+50!     - Wrap the text to 50 columns and set the font size to show the entire
+          text. Depending in the amount of text, the result may be unreadably tiny.
+
+50!<70  - Wrap the text to 50 columns and set the font size to as much as
+          possible, but no smaller than 70 columns.
+
+>30<60  - Adjust the font size to fit the entire text, but no larger than 30
+          columns and no smaller than 60 columns. Lines longer than 60 columns
+          are wrapped.
+
+<60/@nw - Adjust the font size to fit the text but no smaller than 60 columns,
+          and "slash" lines that are longer than that. Align text to the
+          northwest i.e.  the upper left hand corner.
+
+/@nw<40 - same as above, then token order is irrelevent.
+
+=80@w   - use 80 point text, aligned on the left edge.

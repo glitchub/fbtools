@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+import os, sys, getopt, fb
+
+usage="""
+Usage:
+
+    fbquery [options]
+
+Report frame buffer size and other info.
+
+Options are:
+
+    -d device       - framebuffer device, default is "/dev/fb0"
+    -b              - brief info
+"""
+
+device="/dev/fb0"
+brief = False
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"d:b")
+    if len(args): raise Exception("Unexpected argument")
+    for opt, arg in opts:
+        if opt == "-d": device = arg
+        elif opt == "-b": brief = True
+
+except Exception as e:
+    print (str(e),usage, file=sys.stderr)
+    quit(1)
+
+fb = fb.Framebuffer(device=device)
+
+if brief:
+    print("%dx%d" % (fb.width, fb.height))
+else:
+    print("Device:      %s" % device)
+    print("Width:       %d" % fb.width)
+    print("Height:      %d" % fb.height)
+    print("Bytes/pixel: %d" % fb.bpp)
+    print("Red shift:   %d" % fb.red)
+    print("Green shift: %d" % fb.green)
+    print("Blue shift:  %d" % fb.blue)
