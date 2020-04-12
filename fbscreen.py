@@ -129,19 +129,25 @@ class Style():
             for c in list(style):
                 if c in "=+!<>/@ ":
                     if key: got[key]=value
-                    key = c if c is not " " else None
+                    key = None
+                    if c in "!/": got[c] = True
+                    elif c is not " ": key = c
                     value=""
-                else:
-                    if key: value += c
-            got[key]=value
+                elif key: value += c
+                else: raise Exception("Unexpected character '%s' in style" % c)
+            if key: got[key]=value
 
-        self.point = int(got.get('=',0))
-        if self.point:
-            self.columns = self.min = self.max = self.all = self.slash = None
+        self.point = self.columns = self.min = self.max = self.all = self.slash = None
+        if '=' in got:
+            self.point = int(got['='])
+            assert self.point > 0
         else:
-            self.columns = int(got.get('+',0))
+            self.columns = int(got.get('+',0) or '0')
+            assert self.columns >= 0
             self.min = int(got.get('>',0))
+            assert self.min >= 0
             self.max = int(got.get('<',0))
+            assert self.min >= 0
             self.entire = '!' in got
             self.slash = '/' in got
         self.align = Align(got.get('@','center'))
@@ -281,18 +287,18 @@ class Layer():
                     columns = max(len(t) for t in text)
 
                 # scale to number of columns
-                point = (self.width // columns) * scalewidth
+                point = (self.width / columns) * scalewidth
 
                 # maybe scale to entire text
                 if self.style.entire:
-                    point = min(point, (self.height // len(text)) * scaleheight)
+                    point = min(point, (self.height / len(text)) * scaleheight)
 
                 # keep columns in min and max range
-                if self.style.max: point = max(point, (self.width // self.style.max) * scalewidth)
-                if self.style.min: point = min(point, (self.width // self.style.min) * scalewidth)
+                if self.style.max: point = max(point, (self.width / self.style.max) * scalewidth)
+                if self.style.min: point = min(point, (self.width / self.style.min) * scalewidth)
 
             # set the new point size, note it rounds down
-            f = Font.truetype(font=self.font, size = int(point))
+            f = Font.truetype(font=self.font, size = int(point) or 1)
             charwidth = f.getsize(" ")[0] # meaningless for proportional fonts
             charheight = f.font.height
 
@@ -322,8 +328,8 @@ class Layer():
             for l in text:
                 # align horizontal
                 if self.style.align.west: xoff = 0
-                elif self.style.align.east: xoff = self.width - f.getsize(l)[0]
-                else: xoff = (self.width - f.getsize(l)[0]) // 2
+                elif self.style.align.east: xoff = self.width - f.getsize(l)[0] + 1
+                else: xoff = (self.width - f.getsize(l)[0] + 1) // 2
                 d.text((xoff, yoff), l, font = f, fill = self.fg.rgba)
                 yoff += charheight  # next line
 
