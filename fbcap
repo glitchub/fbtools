@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-import os, sys, getopt, fb, PIL.Image as Image
+import os, sys, getopt, PIL.Image as Image
+
+try: import fb                 # works if this executable is in the fbtools directory
+except: from fbtools import fb # works if fbtools is installed as a package
 
 usage="""
 Usage:

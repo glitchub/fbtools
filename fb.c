@@ -10,8 +10,8 @@
 
 struct fbinfo
 {
-    uint32_t height,    // height must be first (for python)
-             width,     // width must be second (for python)
+    uint32_t height,    // height in pixels
+             width,     // width in pixels
              bpp,       // bytes per pixel: 2, 3, or 4. If 2 bytes, then colorspace is 565.
              red,       // red shift
              green,     // green shift
@@ -152,7 +152,7 @@ int fbpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
 
             while (pixels--)
             {
-                *p++ = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue);
+                *p++ = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue) | 0xff000000;
                 rgb += 3;
             }
             break;

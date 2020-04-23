@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 # Clear frame buffer
-import os, sys, getopt, fb, fbscreen
+import os, sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
 
 usage="""
 Usage:
@@ -32,4 +35,4 @@ except Exception as e:
     print (str(e),usage, file=sys.stderr)
     quit(1)
 
-fbscreen.Screen(fbdev=device, bg=color).display()
+screen.Screen(fbdev=device, bg=color).display()

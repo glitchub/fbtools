@@ -55,8 +55,8 @@ class Touch():
                                 self.button = button
                                 self.width = x.maximum
                                 self.height = y.maximum
-                                self.screen_width = None
-                                self.screen_height = None
+                                self.scale_width = None  # these can be set later to scale the results
+                                self.scale_height = None
                                 return
             except OSError:
                 # ioctl not supported so advance to next
@@ -83,20 +83,22 @@ class Touch():
         press = xabs = yabs = None
 
         while True:
-            # It seems that some event drivers don't support the poll
-            # method correctly. So we read the device in non-blocking mode
-            # and select only when its completely drained.
+            # It looks like some touch drivers don't support the poll method
+            # correctly? So first try to read a packet in non-blocking mode and
+            # select only if nothing is waiting.
             while True:
                 packet = self.fd.read(16)
                 if packet:
-                    while len(packet) < 16:
-                        # Partial packet, the rest should arrive soon
+                    if len(packet) == 16: break
+                    # Partial packet, maybe the rest is in the pipe?
+                    for x in range(10):
                         os.sched_yield()
-                        r = self.fd.read(16-len(packet))
-                        if r: packet += r
-                    break
-                s = select.select([self.fd], [], [], max(0, timeout-time.monotonic()) if timeout else None)
-                if not s[0]: return False
+                        packet += self.fd.read(16-len(packet))
+                        if len(packet) == 16: break
+                    # Ugh, ignore partial packet
+                else:
+                    s = select.select([self.fd], [], [], max(0, timeout-time.monotonic()) if timeout else None)
+                    if not s[0]: return False # Timeout!
 
             # An event packet is 16 bytes:
             #     struct input_event {
@@ -111,9 +113,9 @@ class Touch():
             if type == 0: # EV_SYN
                 if press == 1:
                     if xabs is not None and yabs is not None:
-                        # scale touch to screen
-                        if self.screen_width: xabs *= (self.screen_width/self.width)
-                        if self.screen_height: yabs *= (self.screen_height/self.height)
+                        # scale if enabled
+                        if self.scale_width: xabs = int(xabs * (self.scale_width/self.width))
+                        if self.scale_height: yabs = int(yabs * (self.scale_height/self.height))
                         return (xabs, yabs)
                 elif press == 0:
                     return None
@@ -133,8 +135,9 @@ class Touch():
             if xy is None: return True      # release
             if xy is False: return False    # timeout
 
-    # Given dict of {box:value}, look for a touch within one of the boxes, and return the value
-    # defines an area in form [x1, y1, x2, y2].
+    # Given dict of {box:value}, where 'box' defines an area in form [x1, y1,
+    # x2, y2], look for a touch in one of the boxes, and return the
+    # corresponding value. Boxes must not overlap.
     def select(self, boxes, timeout=None):
         if timeout: timeout += time.monotonic()
         while True:
@@ -149,8 +152,8 @@ if __name__ == "__main__":
     t = Touch() # Find the first EV_ABS device with X and Y axis and a usable touch button
     print("Using device %s, %d x %d, key code %d" % (t.device, t.width, t.height, t.button))
     # scale it to virtual 250x250 screen
-    t.screen_width=250
-    t.screen_height=250
+    t.scale_width=250
+    t.scale_height=250
     while True:
         pos = t.touch(timeout=5)
         if pos : print("%d x %d" % pos)

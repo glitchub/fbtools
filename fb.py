@@ -2,23 +2,19 @@
 import os
 from ctypes import *
 
-# directory containing this module must also contain fb.bin
-__here__=os.path.dirname(__file__) or '.'
+# directory that contains this module must also contain fb.bin
+_fb_bin=(os.path.dirname(__file__) or '.')+"/fb.bin"
+if not os.path.isfile(_fb_bin):
+    raise Exception("Can't find %s\n"
+        "Most likely this is because you didn't build it.\n"
+        "Go to the fbtools directory and run 'make'." % _fb_bin)
 
 class Framebuffer():
     # open indexed framebuffer and mmap it
     def __init__(self, device=None):
-
         if not device: device = "/dev/fb0"
-
-        # we need fb.bin
-        fb_bin = __here__+"/fb.bin"
-        if not os.path.isfile(fb_bin):
-            raise Exception("Can't find %s\n"
-                            "Most likely this is because you didn't build it.\n"
-                            "Go to the fbtools directory and run 'make'." % fb_bin)
-        self.lib = CDLL(fb_bin)
-        self.fbinfo = (c_uint*16)(); # too big is ok
+        self.lib = CDLL(_fb_bin)
+        self.fbinfo = (c_uint*8)();
         res = self.lib.fbopen(byref(self.fbinfo), bytes(device, 'utf-8'))
         if res:
             raise Exception("fbopen %s failed (%d)" % (device, res))

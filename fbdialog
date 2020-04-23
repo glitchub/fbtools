@@ -1,5 +1,9 @@
 #!/usr/bin/python3
-import os, sys, getopt, traceback, fbscreen, touch
+import os, sys, getopt, traceback
+
+try: import screen, touch                 # works if this executable is in the fbtools directory
+except: from fbtools import screen, touch # works if fbtools is installed as a package
+
 usage = """
 Usage:
 
@@ -77,7 +81,7 @@ except Exception as e:
     quit(1)
 
 
-screen = fbscreen.Screen(fbdev=fbdev, fg=fg, bg=bg, font=font, style=style, border=border)
+screen = screen.Screen(fbdev=fbdev, fg=fg, bg=bg, font=font, style=style, border=border)
 touch = touch.Touch(screen.width, screen.height, device=touchdev)
 
 margin += border

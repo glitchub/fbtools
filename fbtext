@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-import os, sys, getopt, fbscreen
+import os, sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
 
 usage = """
 Usage:
@@ -57,7 +60,7 @@ else:
 margin += border
 
 # Init the screen
-screen = fbscreen.Screen(fbdev=device, fg=fg, bg=bg, font=font, style=style, border=border)
+screen = screen.Screen(fbdev=device, fg=fg, bg=bg, font=font, style=style, border=border)
 
 # Add the text
 screen.child(left=margin, top=margin, right=-margin, bottom=-margin).text(text).merge()

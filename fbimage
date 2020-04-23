@@ -1,7 +1,10 @@
 #!/usr/bin/python3
 
 # Write an image to frame buffer
-import sys, getopt, fbscreen
+import sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
 
 usage="""
 Usage:
@@ -50,7 +53,7 @@ except Exception as e:
 margin += border
 
 # Create a screen
-screen = fbscreen.Screen(fbdev=device, fg=fg, bg=bg, border=border)
+screen = screen.Screen(fbdev=device, fg=fg, bg=bg, border=border)
 
 # Load image between margins
 screen.child(left=margin, top=margin, right=-margin, bottom=-margin).image(filename, stretch=stretch).merge()

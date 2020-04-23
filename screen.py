@@ -1,5 +1,8 @@
 # Frame buffer graphics manipulation using PIL
-import os, sys, re, fb, PIL.Image as Image, PIL.ImageFont as Font, PIL.ImageDraw as Draw
+import os, sys, re, PIL.Image as Image, PIL.ImageFont as Font, PIL.ImageDraw as Draw
+
+try: import fb              # if fbtools is in the path
+except: from . import fb    # if fbtools is a package
 
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
@@ -41,7 +44,7 @@ class Color():
         if color in self._colors:
             self.red, self.green, self.blue = self._colors[color]
             self.alpha = alpha
-        elif re.match('^#[0-9a-f]{3,4,6,8}$', color):
+        elif len(color) in [4,5,7,9] and re.match('^#[0-9a-f]+$', color):
             if len(color) <= 5:
                 # #RGB or #RGBA
                 self.red = int(color[1],16) * 17

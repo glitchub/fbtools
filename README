@@ -37,15 +37,18 @@ Utlities:
     vtbind              - bind or unbind a virtual terminal from the underlying
                           framebuffer
 
+Note if this directory is installed or symlinked to /usr/bin/python3/dist-packages
+(or equivalent) then utilities can be copied elsewhere.
+
 Other files:
 
-    DejaVuSansMono.ttf  - default font used by fbscreen.py
+    DejaVuSansMono.ttf  - default font used by screen.py
 
     fb.c                - source for fb.bin, framebuffer I/O library
 
     fb.py               - fb.bin interface module
 
-    fbscreen.py         - screen image composition and manipulation module
+    screen.py           - screen image composition and manipulation module
 
     touch.py            - touch device access module
 
