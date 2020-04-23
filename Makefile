@@ -1,8 +1,8 @@
-PYTHON = fbcap fbclear fbdialog fbimage fbmenu fb.py fbquery fbtext screen.py touch.py
-
-CFLAGS += -s -O3
+.PHONY: default
+default: fb.bin
 
 # create shared library
+CFLAGS += -s -O3
 fb.bin: fb.o
 	gcc ${CFLAGS} -shared -Wl,-soname,$@ -o $@ $<
 	chmod 644 $@
@@ -10,26 +10,28 @@ fb.bin: fb.o
 .INTERMEDIATE: fb.o
 fb.o: fb.c; gcc ${CFLAGS} -c -fPIC -o $@ $<
 
-# symlink this directory as a package, note avoid use of ${PWD} with sudo
-site := $(shell python3 -c'import site; print(site.getsitepackages()[0])')
-link := ${site}/$(notdir ${CURDIR})
-.PHONY: install
-install:
-ifneq (${site},)
-	mkdir -p ${site}
-	ln -sf ${CURDIR} ${link}
-endif
-
-# clean files
 .PHONY: clean
 clean:; rm -rf fb.bin *.o *.pyc __pycache__
 
-# clean and delete package symlink
-.PHONY: uninstall
-uninstall: clean;
-ifneq (${site},)
-	rm -f ${link}
+.PHONY: lint
+lint:; pylint3 -E -dno-member *.py fbcap fbclear fbdialog fbimage fbmenu fbquery fbtext
+
+# install and uninstall requires root
+ifeq (${USER},root)
+site := $(shell python3 -c'import site; print(site.getsitepackages()[0])')
+ifeq ($(strip ${site}),)
+$(error Unable to get python package directory)
 endif
 
-.PHONY: lint
-lint:; pylint3 -E -dno-member ${PYTHON}
+# pre-compile modules and symlink this directory as a package
+.PHONY: install
+install: fb.bin
+	rm -rf __pycache__
+	py3compile *.py
+	ln -sf ${CURDIR} ${site}
+
+# delete package symlink
+.PHONY: uninstall
+uninstall: clean; rm -f ${site}/$(notdir ${CURDIR})
+
+endif
