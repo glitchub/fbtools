@@ -1,12 +1,5 @@
 #!/usr/bin/python3
-
-# Write an image to frame buffer
-import sys, getopt
-
-try: import screen                 # works if this executable is in the fbtools directory
-except: from fbtools import screen # works if fbtools is installed as a package
-
-usage="""
+"""
 Usage:
 
     fbimage [options] [image.file]
@@ -26,6 +19,13 @@ If image.file is not specified then the image will be read from stdin.
 If background color is "transparent" then existing framebuffer content will be
 overlayed.
 """
+
+# Write an image to frame buffer
+import sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
+
 
 fg=None
 bg=None
@@ -47,7 +47,7 @@ try:
     filename = args[0] if args else "-"
 
 except Exception as e:
-    print (str(e), usage, file=sys.stderr)
+    print (str(e), "\n", __doc__, file=sys.stderr)
     quit(1)
 
 margin += border

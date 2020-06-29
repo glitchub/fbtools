@@ -1,11 +1,5 @@
 #!/usr/bin/python3
-# Clear frame buffer
-import os, sys, getopt
-
-try: import screen                 # works if this executable is in the fbtools directory
-except: from fbtools import screen # works if fbtools is installed as a package
-
-usage="""
+"""
 Usage:
 
     fbclear [options]
@@ -17,6 +11,11 @@ Options are:
     -c color                - background color, default is "black"
     -d device               - framebuffer device, default is "/dev/fb0"
 """
+
+import os, sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
 
 color="black"
 device="/dev/fb0"
@@ -32,7 +31,7 @@ try:
 
 except Exception as e:
 
-    print (str(e),usage, file=sys.stderr)
+    print (str(e), "\n", __doc__, file=sys.stderr)
     quit(1)
 
 screen.Screen(fbdev=device, bg=color).display()

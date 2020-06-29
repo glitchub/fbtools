@@ -1,10 +1,5 @@
 #!/usr/bin/python3
-import os, sys, getopt, traceback
-
-try: import screen, touch                   # works if this executable is in the fbtools directory
-except: from fbtools import screen, touch   # works if fbtools is installed as a package
-
-usage = """
+"""
 Usage:
 
     fbmenu [options] [--] "Label1" "Label2" [ ... ["Label8"]]
@@ -43,6 +38,11 @@ selected label.
 
 On cancel or timeout, prints nothing. On error, exit status will be non-zero.
 """
+import os, sys, getopt, traceback
+
+try: import screen, touch                   # works if this executable is in the fbtools directory
+except: from fbtools import screen, touch   # works if fbtools is installed as a package
+
 
 cls = True
 bg = None
@@ -86,7 +86,7 @@ try:
         elif opt == "-x": timeout = float(arg)
 
 except Exception as e:
-    print (str(e),"\n",usage,file = sys.stderr)
+    print (str(e), "\n", __doc__, file = sys.stderr)
     quit(1)
 
 screen = screen.Screen(fbdev=fbdev, fg=fg, bg=bg, font=font, style=style, border=border)

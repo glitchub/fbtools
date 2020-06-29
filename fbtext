@@ -1,10 +1,5 @@
 #!/usr/bin/python3
-import os, sys, getopt
-
-try: import screen                 # works if this executable is in the fbtools directory
-except: from fbtools import screen # works if fbtools is installed as a package
-
-usage = """
+"""
 Usage:
 
     fbtext [options] [--] ["arbitrary text"]
@@ -25,6 +20,12 @@ If no text is provided then it will be read from stdin.
 If specified background color is "transparent" (or specifies a transparent
 alpha), then existing framebuffer content will be overlayed.
 """
+
+import os, sys, getopt
+
+try: import screen                 # works if this executable is in the fbtools directory
+except: from fbtools import screen # works if fbtools is installed as a package
+
 
 border = 0
 fg = None
@@ -47,7 +48,7 @@ try:
         else: raise Exception("Invalid option '%s'" % opt)
 
 except Exception as e:
-    print (str(e),"\n",usage,file = sys.stderr)
+    print (str(e), "\n", __doc__, file = sys.stderr)
     quit(1)
 
 if not args or (len(args)==1 and args[0] == "-"):

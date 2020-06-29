@@ -1,10 +1,5 @@
 #!/usr/bin/python3
-import os, sys, getopt, PIL.Image as Image
-
-try: import fb                 # works if this executable is in the fbtools directory
-except: from fbtools import fb # works if fbtools is installed as a package
-
-usage="""
+"""
 Usage:
 
     fbcap [options] filename
@@ -17,6 +12,11 @@ Options are:
     -d device       - framebuffer device, default is "/dev/fb0"
 """
 
+import os, sys, getopt, PIL.Image as Image
+
+try: import fb                 # works if this executable is in the fbtools directory
+except: from fbtools import fb # works if fbtools is installed as a package
+
 device="/dev/fb0"
 
 try:
@@ -27,7 +27,7 @@ try:
     if len(args) != 1: raise Exception("Expected a filename")
 
 except Exception as e:
-    print (str(e),usage, file=sys.stderr)
+    print (str(e), "\n", __doc__, file=sys.stderr)
     quit(1)
 
 f = fb.Framebuffer(device=device)

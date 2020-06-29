@@ -1,10 +1,5 @@
 #!/usr/bin/python3
-import os, sys, getopt, fb
-
-try: import fb                 # works if this executable is in the fbtools directory
-except: from fbtools import fb # works if fbtools is installed as a package
-
-usage="""
+"""
 Usage:
 
     fbquery [options]
@@ -17,6 +12,11 @@ Options are:
     -b              - brief info
 """
 
+import os, sys, getopt, fb
+
+try: import fb                 # works if this executable is in the fbtools directory
+except: from fbtools import fb # works if fbtools is installed as a package
+
 device="/dev/fb0"
 brief = False
 
@@ -28,7 +28,7 @@ try:
         elif opt == "-b": brief = True
 
 except Exception as e:
-    print (str(e),usage, file=sys.stderr)
+    print (str(e), "\n", __doc__, file=sys.stderr)
     quit(1)
 
 fb = fb.Framebuffer(device=device)
