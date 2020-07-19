@@ -119,7 +119,7 @@ selected = touch.select(dict([b.box(),b] for b in buttons), timeout=timeout)
 
 if selected:
     # overlay button with 60% black to indicate press
-    selected.sibling(bg="black60").merge()
+    ovl = selected.child(bg="black60")
     screen.display()
 
     # wait for release (no timeout!)
@@ -127,11 +127,10 @@ if selected:
 
     if not cls:
         # restore original button
-        selected.merge()
+        ovl.remove()
         screen.display()
 
     print(buttons.index(selected)+1)
 
 if cls:
-    screen.clear("black")
-    screen.display()
+    screen.Screen(fbdev=fbdev, bg='black').display()

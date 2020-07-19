@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+ibli!/usr/bin/python3
 """
 Usage:
 
@@ -156,17 +156,17 @@ while True:
             for b in buttons:
                 if b != selected and b[0]:
                     b[0] = False
-                    b[1].clear().border().merge()
+                    b[1].clear().border()
         screen.display()
     else:
         # dim non-checkbox to show selected
-        selected.sibling(bg="black60").merge()
+        dim = selected.child(bg="black60")
         screen.display()
         # wait for release
         touch.release()
         if not cls:
-            # restore original button
-            selected.merge()
+            # remove overlay
+            dim.remove()
             screen.display()
         if selected is cancel: break
         if selected is ok:
@@ -181,5 +181,4 @@ while True:
         break
 
 if cls:
-    screen.clear("black")
-    screen.display()
+    screen.clear()

@@ -1,6 +1,8 @@
 # Frame buffer graphics manipulation using PIL
 import os, sys, re, PIL.Image as Image, PIL.ImageFont as Font, PIL.ImageDraw as Draw
 
+if Image.VERSION < "4.2.0": raise Exception("Requires PIL version 4.2.0 or later")
+
 try: import fb              # if fbtools is in the path
 except: from . import fb    # if fbtools is a package
 
@@ -60,6 +62,10 @@ class Color():
         else:
             raise Exception("Invalid color '%s'" % color)
 
+    # return true if color is at all transparent
+    @property
+    def transparent(self): return self.alpha != 255
+
     # return various tuples for use with PIL
     @property
     def rgb(self): return (self.red, self.green, self.blue)
@@ -69,6 +75,7 @@ class Color():
 
     @property
     def rgbx(self): return (self.red, self.green, self.blue, 255)
+
 
 class Align():
     _west = 1
@@ -164,9 +171,12 @@ class Layer():
     @property
     def height(self): return self.bottom-self.top+1
 
+    # true if fg or bg color is transparent
+    @property
+    def transparent(self): return self.fg.transparent or self.bg.transparent
+
     # Create layer, note coordinates are relative to the parent layer.
     def __init__(self, parent=None, left=None, top=None, right=None, bottom=None, fg=None, bg=None, font=None, style=None, border=None):
-        self.parent = parent    # the parent layer
         self.left = int(left)
         self.top = int(top)
         self.right = int(right)
@@ -180,10 +190,34 @@ class Layer():
         self.style = Style(style)
         self.img = Image.new("RGBA", (self.width, self.height), self.bg.rgba)
         self.border()
+        self.children = []      # layer has no children
+        self.redraw = True      # layer needs to be updated
+        self.parent = parent    # remember parent and absolute screen offset
+        if self.parent:
+            # track absolute coordinates on the screen layer
+            self.abs_left = parent.abs_left + self.left
+            self.abs_top = parent.abs_top + self.top
+        else:
+            self.abs_left = 0
+            self.abs_top = 0
+
+    # Remove layer and all children
+    def remove(self):
+        for c in self.children:         # first recursively unlink all children
+            c.parent = None
+            c.unlink()
+        self.children = []
+        if self.parent:                 # then unlink from parent
+            try:
+                self.parent.children.remove(self)
+            except ValueError:
+                pass
+            self.parent.redraw = True    # parent should be redrawn
+            self.parent = None          # drop reference to parent
 
     # draw a border on the layer
     def border(self, width=None, color=None):
-        if not width: width=self.borderwidth
+        if not width: width = self.borderwidth
         if width:
             color = Color(color or self.fg).rgba
             draw = Draw.Draw(self.img)
@@ -191,19 +225,7 @@ class Layer():
             draw.rectangle((0, 0, self.borderwidth-1, self.height-1), fill=color)                      # down the left
             draw.rectangle((self.width-self.borderwidth, 0, self.width-1, self.height-1), fill=color)  # down the right
             draw.rectangle((0, self.height-self.borderwidth, self.width-1, self.height-1), fill=color) # across the bottom
-        return self
-
-    # Clear this layer with specified or current background color (but without
-    # transparency)
-    def clear(self, color=None):
-        self.img = Image.new("RGBA", (self.width, self.height), Color(color or self.bg).rgbx)
-        return self
-
-    # Merge this layer to parent, possibly recurse all the way to the screen layer
-    def merge(self, recurse=True):
-        if self.parent:
-            self.parent.img.alpha_composite(self.img, (self.left, self.top))
-            if recurse: self.parent.merge(recurse=True)
+            self.redraw = True
         return self
 
     # Normalize left, top, right, and bottom values relative to this layer.
@@ -228,20 +250,40 @@ class Layer():
 
         return int(left), int(top), int(right), int(bottom)
 
-    # Create a child layer of this layer
+    # Create and return child layer of this layer
     def child(self, left=0, top=0, right=0, bottom=0, fg=None, bg=None, font=None, style=None, border=None):
         left, top, right, bottom = self.normalize(left, top, right, bottom)
-        return Layer(self, left=left, top=top, right=right, bottom=bottom,
-                     fg=fg or self.fg, bg=bg or self.bg,
-                     font=font or self.font, style=style or self.style,
-                     border=border)
+        c = Layer(self, left=left, top=top, right=right, bottom=bottom,
+                  fg=fg or self.fg, bg=bg or self.bg,
+                  font=font or self.font, style=style or self.style,
+                  border=border)
+        self.children.append(c) # remember it
+        return c
 
-    # Create a sibling of this layer, i.e. by asking parent to create a child with same dimensions
-    def sibling(self, fg=None, bg=None, font=None, style=None, border=None):
-        return self.parent.child(left=self.left, top=self.top, right=self.right, bottom=self.bottom,
-                                 fg=fg or self.fg, bg=bg or self.bg,
-                                 font=font or self.font, style=style or self.style,
-                                 border=border)
+    # Return true if layer or any children need redraw
+    def _redrawable(self):
+        if self.redraw: return True
+        for c in self.children:
+            if c._redrawable():
+                return True
+        return False
+
+    # Given an image the size of the screen, recursively update with current layer and/or
+    # children and return absolute coordinates of the updated area. Or return
+    # None if now redraw required.
+    def _update(self, img, force=False):
+        if not force and not self.redraw:
+            # look for redrawable children
+            r = [c for c in self.children if c._redrawable()]
+            if len(r) == 0: return None  # done if none
+            if len(r) == 1 and not r[0].transparent: return r[0].update(img) # if exactly one and not transparent, update it
+        # Redraw this layer and all children
+        help(img)
+        img.alpha_composite(self.img, (self.abs_left, self.abs_top))
+        for c in self.children: c._update(img, True)
+        self.redraw = False
+        # return tuple of absolute coordinates
+        return (self.abs_left, self.abs_top, self.abs_left+(self.right-self.left), self.abs_top+(self.bottom-self.top))
 
     # private method, wrap text list to width and return new list
     @staticmethod
@@ -265,7 +307,6 @@ class Layer():
         text=(text or '').encode("raw_unicode_escape").decode("unicode_escape")
         # Split into lines, expand tabs, delete all other controls
         text=[''.join(c for c in s.expandtabs() if c.isprintable()).rstrip(' ') for s in text.splitlines()]
-
 
         if text:
             if self.style.point:
@@ -336,11 +377,11 @@ class Layer():
                 d.text((xoff, yoff), l, font = f, fill = self.fg.rgba)
                 yoff += charheight  # next line
 
-            self.merge()
+            self.redraw = True # screen update required
 
         return self
 
-    # Write in mage to this layer, can be an Image(), or a name of an image
+    # Write an image to this layer, can be an Image(), or a name of an image
     # file, or "-" to read formatted img data from stdin.  The image will be
     # scaled to fit on this layer, if stretch is True will fit exactly else
     # will be aligned as given (default centered).
@@ -381,7 +422,7 @@ class Layer():
                 else:
                     xoff = (self.width - img.width) // 2
         self.img.alpha_composite(img, (xoff, yoff))
-        self.merge()
+        self.redraw = True # screen update required
         return self
 
     # Return tuple of (left, top, right, bottom) for this layer, relative to the screen.
@@ -409,13 +450,28 @@ class Screen(Layer):
 
         self.fb = fb.Framebuffer(device=fbdev)
         super().__init__(None, left=0, top=0, right=self.fb.width-1, bottom=self.fb.height-1, fg=fg, bg=bg or "black", font=font, style=style, border=border)
-        if self.bg.alpha != 255:
+        if self.bg.transparent:
             # install existing framebuffer underneath non-opaque background
             i = Image.frombytes("RGB", (self.width, self.height), self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
             i.alpha_composite(self.img)
             self.img = i
 
-    # Write screen image to the framebuffer
-    def display(self):
-       self.fb.pack(self.img.convert("RGB").tobytes())
+    # prevent remove method on the screen layer
+    def remove(self):
+        raise RuntimeError("Can't remove the screen layer!")
+
+    # Clear screen with specified or current background color (transparency is ignored), all children are removed
+    def clear(self, color=None):
+        for c in self.children: c.remove()
+        self.img = Image.new("RGBA", (self.width, self.height), Color(color or self.bg).rgbx)
+        self.redraw = True
+        return self
+
+    # Recursively screen if changed  or forced
+    def display(self, force=False):
+       img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
+       updated = self._update(img, force)
+       if updated:
+           # pack the updated part of the screen
+           self.fb.pack(img.convert("RGB").tobytes(), *updated)
        return self

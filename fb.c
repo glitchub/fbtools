@@ -12,7 +12,7 @@ struct fbinfo
 {
     uint32_t height,    // height in pixels
              width,     // width in pixels
-             bpp,       // bytes per pixel: 2, 3, or 4. If 2 bytes, then colorspace is 565.
+             bpp,       // bytes per pixel: 2, 3, or 4. If 2 bytes, then columnorspace is 565.
              red,       // red shift
              green,     // green shift
              blue;      // blue shift
@@ -68,17 +68,15 @@ int fbopen(struct fbinfo *fb, char *device)
     return 0;
 }
 
-// Unpack pixels from framebuffer pixel offset to raw rgb data and return 0.
-// Return 1 if pixels+offset is out of range. *rgfb size must be pixels*3 bytes
-int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
+// Unpack framebuffer to *rgb array, which must be fb->height*fb->width*3 bytes long
+void fbunpack(struct fbinfo *fb, uint8_t *rgb)
 {
-    if (offset+pixels > fb->height*fb->width) return 1;
-
+    uint32_t pixels = fb->width * fb->height;
     switch(fb->bpp)
     {
         case 2:
         {
-            uint16_t *p = fb->mmap+(offset*2);
+            uint16_t *p = fb->mmap;
             while (pixels--)
             {
                 uint16_t n = *p++;
@@ -90,7 +88,7 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
         }
         case 3:
         {
-            uint8_t *p = fb->mmap+(offset*3);
+            uint8_t *p = fb->mmap;
             while (pixels--)
             {
                 uint32_t n = (*p++ << 0) + (*p++ << 8) + (*p++ << 16); // little-endian
@@ -102,7 +100,7 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
         }
         case 4:
         {
-            uint32_t *p = fb->mmap+(offset*4);
+            uint32_t *p = fb->mmap;
             while (pixels--)
             {
                 uint32_t n = *p++;
@@ -113,49 +111,53 @@ int fbunpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
             break;
         }
     }
-    return 0;
 }
 
-// Pack pixels of raw rgb data to framebuffer specified pixel offset and return
-// 0. Error ERANGE if pixels+offset out of range. *rgb must be pixels*3 bytes
-// long.
-int fbpack(struct fbinfo *fb, uint32_t pixels, uint32_t offset, uint8_t *rgb)
+// Pack raw rgb data to specified area of framebuffer and return 0. The rgb
+// array must always be fb->height * fb->width * 3 bytes long, even if the
+// specified area is smaller than that. Return 0 if success, or ERANGE if
+// specified area is invalid.
+int fbpack(struct fbinfo *fb, uint8_t *rgb, uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
 {
-    if (offset+pixels > fb->height*fb->width) return 1;
+    if (left < 0 || left > right || left >= fb->width || right >= fb->width ||
+        top < 0 || top > bottom || top >= fb->height || bottom >= fb->height) return ERANGE;
 
-    switch(fb->bpp)
+    for (uint32_t line = top; line <= bottom; line++)
     {
-        case 2:
+        uint8_t *d = rgb + (line * fb->width * 3) + (left * 3);
+        switch(fb->bpp)
         {
-            uint16_t *p = fb->mmap+(offset*2);
-            while (pixels--)
+            case 2:
             {
-                *p++ = ((rgb[0]>>3) << fb->red) | ((rgb[1]>>2) << fb->green) | ((rgb[2]>>3) << fb->blue);
-                rgb += 3;
+                uint16_t *p = fb->mmap + (line * fb->width * 2) + (left * 2);
+                for (uint32_t column = left; column <= right; column++)
+                {
+                    *p++ = ((d[0]>>3) << fb->red) | ((d[1]>>2) << fb->green) | ((d[2]>>3) << fb->blue);
+                    d += 3;
+                }
+                break;
             }
-            break;
-        }
-        case 3:
-        {
-            uint8_t *p = fb->mmap+(offset*3);
-            while (pixels--)
+            case 3:
             {
-                uint32_t n = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue);
-                *p++ = n; *p++ = n>>8; *p++ = n >> 16; // little-endian
-                rgb += 3;
+                uint8_t *p = fb->mmap + (line * fb->width * 3) + (left * 3);
+                for (uint32_t column = left; column <= right; column++)
+                {
+                    uint32_t n = (d[0] << fb->red) | (d[1] << fb->green) | (d[2] << fb->blue);
+                    *p++ = n; *p++ = n>>8; *p++ = n >> 16; // little-endian
+                    d += 3;
+                }
+                break;
             }
-            break;
-        }
-        case 4:
-        {
-            uint32_t *p = fb->mmap+(offset*4);
-
-            while (pixels--)
+            case 4:
             {
-                *p++ = (rgb[0] << fb->red) | (rgb[1] << fb->green) | (rgb[2] << fb->blue) | 0xff000000;
-                rgb += 3;
+                uint32_t *p = fb->mmap + (line * fb->width * 4) + (left * 4);
+                for (uint32_t column = left; column <= right; column++)
+                {
+                    *p++ = (d[0] << fb->red) | (d[1] << fb->green) | (d[2] << fb->blue) | 0xff000000;
+                    d += 3;
+                }
+                break;
             }
-            break;
         }
     }
     return 0;
