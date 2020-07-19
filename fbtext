@@ -64,7 +64,7 @@ margin += border
 screen = screen.Screen(fbdev=device, fg=fg, bg=bg, font=font, style=style, border=border)
 
 # Add the text
-screen.child(left=margin, top=margin, right=-margin, bottom=-margin).text(text).merge()
+screen.child(left=margin, top=margin, right=-margin, bottom=-margin).text(text)
 
 # Show it
 screen.display()

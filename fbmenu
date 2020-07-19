@@ -1,4 +1,4 @@
-ibli!/usr/bin/python3
+#!/usr/bin/python3
 """
 Usage:
 
@@ -122,9 +122,9 @@ for b in range(len(args)):
         checked = checkboxes & 1<<b
         buttons.append([checked, bar.child(left=barheight*.1, top=barheight*.1, right=(barheight*.9)-div, bottom=(barheight*.9)-div, border=1, fg=screen.fg, bg=screen.bg, style="0@c")])
         if checked:
-            buttons[-1][1].text("X")
+            buttons[-1][1].clear().text("X")
         else:
-            buttons[-1][1].merge()
+            buttons[-1][1].clear()
         touchable[buttons[-1][1].parent.box()]=buttons[-1]
     bartop += barheight
 
@@ -151,7 +151,7 @@ while True:
         if selected[0]:
             selected[1].clear().border().text("X")
         else:
-            selected[1].clear().border().merge()
+            selected[1].clear().border()
         if radio:
             for b in buttons:
                 if b != selected and b[0]:

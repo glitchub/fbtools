@@ -1,13 +1,21 @@
 # Frame buffer graphics manipulation using PIL
 import os, sys, re, PIL.Image as Image, PIL.ImageFont as Font, PIL.ImageDraw as Draw
 
-if Image.VERSION < "4.2.0": raise Exception("Requires PIL version 4.2.0 or later")
-
 try: import fb              # if fbtools is in the path
 except: from . import fb    # if fbtools is a package
 
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
+
+# Composite overlay image onto base at specified offset, the overlay must fit
+# entirely onto base
+def composite(base, overlay, xoff=0, yoff=0):
+    assert xoff + overlay.width <= base.width and yoff + overlay.height <= base.height
+    b = (xoff, yoff, overlay.width, overlay.height)
+    if b == (0, 0, base.width, base.height):
+        return Image.alpha_composite(base, overlay)
+    else:
+        return base.paste(Image.alpha_composite(base.crop(b), overlay), b)
 
 class Color():
     _colors = {
@@ -203,17 +211,17 @@ class Layer():
 
     # Remove layer and all children
     def remove(self):
-        for c in self.children:         # first recursively unlink all children
+        for c in self.children:         # recursively remove all children
             c.parent = None
-            c.unlink()
+            c.remove()
         self.children = []
         if self.parent:                 # then unlink from parent
             try:
                 self.parent.children.remove(self)
             except ValueError:
                 pass
-            self.parent.redraw = True    # parent should be redrawn
-            self.parent = None          # drop reference to parent
+            self.parent.redraw = True   # parent should be redrawn
+            self.parent = None          # last, dereference parent
 
     # draw a border on the layer
     def border(self, width=None, color=None):
@@ -260,6 +268,14 @@ class Layer():
         self.children.append(c) # remember it
         return c
 
+    # Clear layer with specified or current background color, background transparency is ignored
+    # All children are removed()
+    def clear(self, color=None):
+        for c in list(self.children): c.remove()
+        self.img = Image.new("RGBA", (self.width, self.height), Color(color or self.bg).rgbx)
+        self.redraw = True
+        return self
+
     # Return true if layer or any children need redraw
     def _redrawable(self):
         if self.redraw: return True
@@ -278,8 +294,7 @@ class Layer():
             if len(r) == 0: return None  # done if none
             if len(r) == 1 and not r[0].transparent: return r[0].update(img) # if exactly one and not transparent, update it
         # Redraw this layer and all children
-        help(img)
-        img.alpha_composite(self.img, (self.abs_left, self.abs_top))
+        img = composite(img, self.img, self.abs_left, self.abs_top)
         for c in self.children: c._update(img, True)
         self.redraw = False
         # return tuple of absolute coordinates
@@ -421,7 +436,7 @@ class Layer():
                     xoff = self.width - img.width
                 else:
                     xoff = (self.width - img.width) // 2
-        self.img.alpha_composite(img, (xoff, yoff))
+        self.img = composite(self.img, img, xoff, yoff)
         self.redraw = True # screen update required
         return self
 
@@ -453,21 +468,13 @@ class Screen(Layer):
         if self.bg.transparent:
             # install existing framebuffer underneath non-opaque background
             i = Image.frombytes("RGB", (self.width, self.height), self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
-            i.alpha_composite(self.img)
-            self.img = i
+            self.im = composite(i, self.im)
 
     # prevent remove method on the screen layer
     def remove(self):
         raise RuntimeError("Can't remove the screen layer!")
 
-    # Clear screen with specified or current background color (transparency is ignored), all children are removed
-    def clear(self, color=None):
-        for c in self.children: c.remove()
-        self.img = Image.new("RGBA", (self.width, self.height), Color(color or self.bg).rgbx)
-        self.redraw = True
-        return self
-
-    # Recursively screen if changed  or forced
+    # Recursively update screen if changed  or forced
     def display(self, force=False):
        img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
        updated = self._update(img, force)
