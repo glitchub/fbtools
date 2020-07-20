@@ -7,16 +7,6 @@ except: from . import fb    # if fbtools is a package
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
 
-# Composite overlay image onto base at specified offset, the overlay must fit
-# entirely onto base
-def composite(base, overlay, xoff=0, yoff=0):
-    assert xoff + overlay.width <= base.width and yoff + overlay.height <= base.height
-    b = (xoff, yoff, overlay.width, overlay.height)
-    if b == (0, 0, base.width, base.height):
-        return Image.alpha_composite(base, overlay)
-    else:
-        return base.paste(Image.alpha_composite(base.crop(b), overlay), b)
-
 class Color():
     _colors = {
         # https://en.wikipedia.org/wiki/Web_colors
@@ -70,7 +60,7 @@ class Color():
         else:
             raise Exception("Invalid color '%s'" % color)
 
-    # return true if color is at all transparent
+    # true if color is transparent
     @property
     def transparent(self): return self.alpha != 255
 
@@ -179,7 +169,7 @@ class Layer():
     @property
     def height(self): return self.bottom-self.top+1
 
-    # true if fg or bg color is transparent
+    # true if fg or bg is transparent
     @property
     def transparent(self): return self.fg.transparent or self.bg.transparent
 
@@ -284,21 +274,21 @@ class Layer():
                 return True
         return False
 
-    # Given an image the size of the screen, recursively update with current layer and/or
-    # children and return absolute coordinates of the updated area. Or return
-    # None if now redraw required.
-    def _update(self, img, force=False):
+    # Given a surface, recursively update it with current layer and/or children
+    # and return the new surface.
+    def _update(self, surface, force=False):
         if not force and not self.redraw:
             # look for redrawable children
             r = [c for c in self.children if c._redrawable()]
             if len(r) == 0: return None  # done if none
-            if len(r) == 1 and not r[0].transparent: return r[0].update(img) # if exactly one and not transparent, update it
-        # Redraw this layer and all children
-        img = composite(img, self.img, self.abs_left, self.abs_top)
-        for c in self.children: c._update(img, True)
+            if len(r) == 1 and not r[0].transparent: return r[0]._update(surface) # if exactly one and not transparent, update and return
+        # Composite this layer onto the surface
+        surface.composite(self)
+        # The recursively composite all children
+        for c in self.children: surface = c._update(surface, True)
         self.redraw = False
-        # return tuple of absolute coordinates
-        return (self.abs_left, self.abs_top, self.abs_left+(self.right-self.left), self.abs_top+(self.bottom-self.top))
+        # return the surface
+        return surface
 
     # private method, wrap text list to width and return new list
     @staticmethod
@@ -452,6 +442,37 @@ class Layer():
             top = self.top
         return left, top, left+self.width-1, top+self.height-1
 
+# Used by Layer.update()
+class _Surface():
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.img = None     # composited image, if any
+        self.altered = None # (l,t,r,b) of portion to display, if any
+
+    # composite layer's image over the current surface
+    def composite(self, layer):
+        box = (layer.abs_xoff, layer.abs_yoff, layer.abs_xoff+layer.width-1, layer.abs_yoff+layer.height-1)
+        overlay = layer.img
+        if box == (0, 0, self.width-1, self.height-1):
+            if layer.transparent:
+                if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
+                self.image = Image.alpha_composite(self.img, overlay)
+            else:
+                self.img = overlay.copy()
+        else:
+            # sub layer, paste it in the right place
+            if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
+            if layer.transparent: overlay = Image.alpha_composite(self.image.crop(box), overlay)
+            self.img.paste(overlay, box)
+
+        # the first layer that calls this is the biggest, remember it
+        if not self.altered: self.altered = box
+
+    # write surface to frame buffer, if needed
+    def commit(self, fb):
+        if self.img: fb.pack(self.img.convert("RGB"),tobytes(), *self.altered)
+
 # All layers are children of the screen layer
 class Screen(Layer):
 
@@ -470,15 +491,13 @@ class Screen(Layer):
             i = Image.frombytes("RGB", (self.width, self.height), self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
             self.im = composite(i, self.im)
 
-    # prevent remove method on the screen layer
+    # prevent remove()
     def remove(self):
         raise RuntimeError("Can't remove the screen layer!")
 
-    # Recursively update screen if changed  or forced
-    def display(self, force=False):
-       img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
-       updated = self._update(img, force)
-       if updated:
-           # pack the updated part of the screen
-           self.fb.pack(img.convert("RGB").tobytes(), *updated)
-       return self
+    # Recursively update screen if changed or forced
+    def update(self, force=False):
+        surface = _Surface.new(self.width, self.height)
+        surface = self._update(surface, force)
+        surface.commit(fb)
+        return self

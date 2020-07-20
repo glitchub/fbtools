@@ -119,8 +119,7 @@ void fbunpack(struct fbinfo *fb, uint8_t *rgb)
 // specified area is invalid.
 int fbpack(struct fbinfo *fb, uint8_t *rgb, uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
 {
-    if (left < 0 || left > right || left >= fb->width || right >= fb->width ||
-        top < 0 || top > bottom || top >= fb->height || bottom >= fb->height) return ERANGE;
+    if (left < 0 || left > right || right >= fb->width || top < 0 || top > bottom || bottom >= fb->height) return ERANGE;
 
     for (uint32_t line = top; line <= bottom; line++)
     {
