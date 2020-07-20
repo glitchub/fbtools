@@ -59,4 +59,4 @@ screen = screen.Screen(fbdev=device, fg=fg, bg=bg, border=border)
 screen.child(left=margin, top=margin, right=-margin, bottom=-margin).image(filename, stretch=stretch).merge()
 
 # Update the framebuffer
-screen.display()
+screen.update()

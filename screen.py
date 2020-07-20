@@ -7,6 +7,13 @@ except: from . import fb    # if fbtools is a package
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
 
+# composite overlay image over base and return the result
+def _composite(base, overlay, xoff=0, yoff=0):
+    assert(xoff+overlay.width <= base.width and yoff+overlay.height <= base.height) # offset overlay must be on base
+    box = (xoff, yoff, xoff+overlay.width-1, yoff+overlay.height-1)
+    base.paste(Image.alpha_composite(base.crop(box), overlay), box)
+    return base
+
 class Color():
     _colors = {
         # https://en.wikipedia.org/wiki/Web_colors
@@ -426,7 +433,7 @@ class Layer():
                     xoff = self.width - img.width
                 else:
                     xoff = (self.width - img.width) // 2
-        self.img = composite(self.img, img, xoff, yoff)
+        self.img = _composite(self.img, img, xoff, yoff)
         self.redraw = True # screen update required
         return self
 
@@ -442,36 +449,34 @@ class Layer():
             top = self.top
         return left, top, left+self.width-1, top+self.height-1
 
-# Used by Layer.update()
+# Used by Screen.update/Layer._update()
 class _Surface():
     def __init__(self, width, height):
         self.width = width
         self.height = height
         self.img = None     # composited image, if any
-        self.altered = None # (l,t,r,b) of portion to display, if any
+        self.updated = None # (l,t,r,b) of portion to display, if any
 
     # composite layer's image over the current surface
     def composite(self, layer):
-        box = (layer.abs_xoff, layer.abs_yoff, layer.abs_xoff+layer.width-1, layer.abs_yoff+layer.height-1)
-        overlay = layer.img
-        if box == (0, 0, self.width-1, self.height-1):
+        if not layer.abs_xoff and not layer.abs_yoff and layer.width == self.width and layer.height == self.height:
+            # full size layer, either composite or copy
             if layer.transparent:
                 if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
-                self.image = Image.alpha_composite(self.img, overlay)
+                self.img = Image.alpha_composite(self.img, layer.img)
             else:
-                self.img = overlay.copy()
+                self.img = layer.img.copy()
         else:
-            # sub layer, paste it in the right place
+            # sub layer, composite it to the right place
             if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
-            if layer.transparent: overlay = Image.alpha_composite(self.image.crop(box), overlay)
-            self.img.paste(overlay, box)
+            self.img = _composite(self.img, layer.img, layer.abs_xoff, layer.abs_yoff)
 
-        # the first layer that calls this is the biggest, remember it
-        if not self.altered: self.altered = box
+        # remember the first layer that calls this (will be the biggest)
+        if not self.updated: self.updated = (layer.abs_xoff, layer.abs_yoff, layer.abs_xoff+layer.width-1, layer.abs_yoff+layer.height-1)
 
     # write surface to frame buffer, if needed
-    def commit(self, fb):
-        if self.img: fb.pack(self.img.convert("RGB"),tobytes(), *self.altered)
+    def update(self, fb):
+        if self.img: fb.pack(self.img.convert("RGB").tobytes(), *self.updated)
 
 # All layers are children of the screen layer
 class Screen(Layer):
@@ -489,7 +494,7 @@ class Screen(Layer):
         if self.bg.transparent:
             # install existing framebuffer underneath non-opaque background
             i = Image.frombytes("RGB", (self.width, self.height), self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
-            self.im = composite(i, self.im)
+            self.im = _composite(i, self.im)
 
     # prevent remove()
     def remove(self):
@@ -499,5 +504,5 @@ class Screen(Layer):
     def update(self, force=False):
         surface = _Surface.new(self.width, self.height)
         surface = self._update(surface, force)
-        surface.commit(fb)
+        surface.update(fb)
         return self

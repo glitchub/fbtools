@@ -34,4 +34,4 @@ except Exception as e:
     print (str(e), "\n", __doc__, file=sys.stderr)
     quit(1)
 
-screen.Screen(fbdev=device, bg=color).display()
+screen.Screen(fbdev=device, bg=color).update()

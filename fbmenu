@@ -138,7 +138,7 @@ if showcan:
     cancel = bars.child(left=.6 if checkable else .8,  top=-barheight*.9, right=.8 if checkable else None, bottom=-barheight*.1, border=1, fg="white", bg="red", style="10").text("Cancel")
     touchable[cancel.box()]=cancel
 
-screen.display()
+screen.update()
 
 while True:
     # wait for touch or timeout
@@ -157,17 +157,17 @@ while True:
                 if b != selected and b[0]:
                     b[0] = False
                     b[1].clear().border()
-        screen.display()
+        screen.update()
     else:
         # dim non-checkbox to show selected
         dim = selected.child(bg="black60")
-        screen.display()
+        screen.update()
         # wait for release
         touch.release()
         if not cls:
             # remove overlay
             dim.remove()
-            screen.display()
+            screen.update()
         if selected is cancel: break
         if selected is ok:
             # return binary checkbox state

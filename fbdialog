@@ -112,7 +112,7 @@ for b in range(len(args)):
         ).text(k[3] or chr(b+65))
     )
 
-screen.display()
+screen.update()
 
 # wait for touch or timeout
 selected = touch.select(dict([b.box(),b] for b in buttons), timeout=timeout)
@@ -120,7 +120,7 @@ selected = touch.select(dict([b.box(),b] for b in buttons), timeout=timeout)
 if selected:
     # overlay button with 60% black to indicate press
     ovl = selected.child(bg="black60")
-    screen.display()
+    screen.update()
 
     # wait for release (no timeout!)
     touch.release()
@@ -128,9 +128,9 @@ if selected:
     if not cls:
         # restore original button
         ovl.remove()
-        screen.display()
+        screen.update()
 
     print(buttons.index(selected)+1)
 
 if cls:
-    screen.Screen(fbdev=fbdev, bg='black').display()
+    screen.Screen(fbdev=fbdev, bg='black').update()
