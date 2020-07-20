@@ -133,4 +133,4 @@ if selected:
     print(buttons.index(selected)+1)
 
 if cls:
-    screen.Screen(fbdev=fbdev, bg='black').update()
+    screen.clear().update()

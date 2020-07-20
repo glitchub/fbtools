@@ -7,12 +7,27 @@ except: from . import fb    # if fbtools is a package
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
 
-# composite overlay image over base and return the result
-def _composite(base, overlay, xoff=0, yoff=0):
-    assert(xoff+overlay.width <= base.width and yoff+overlay.height <= base.height) # offset overlay must be on base
-    box = (xoff, yoff, xoff+overlay.width-1, yoff+overlay.height-1)
+# composite overlay Image over base and return the result
+def _composite(base, overlay, left=0, top=0):
+    assert(left+overlay.width <= base.width and top+overlay.height <= base.height) # offset overlay must be on base
+    box = (left, top, left+overlay.width, top+overlay.height) # Note: PIL boxes are one larger than Layer boxes 
     base.paste(Image.alpha_composite(base.crop(box), overlay), box)
     return base
+
+# wrap test to specified width
+def _wrap(text, width):
+    def _wl(line):
+        line = line.rstrip(' ') # retain left white-space
+        while len(line) > width:
+            i = line[:width].rfind(' ')
+            if (i < 0):
+                yield line[:width].rstrip(' ')
+                line = line[width:].lstrip(' ')
+            else:
+                yield line[:i].rstrip(' ')
+                line = line[i+1:].lstrip(' ')
+        yield line
+    return [w.rstrip(' ') for line in text for w in _wl(line)]
 
 class Color():
     _colors = {
@@ -206,8 +221,9 @@ class Layer():
             self.abs_left = 0
             self.abs_top = 0
 
-    # Remove layer and all children
+    # Remove layer and all children, must not subsequently be used
     def remove(self):
+        self.img = None
         for c in self.children:         # recursively remove all children
             c.parent = None
             c.remove()
@@ -234,7 +250,7 @@ class Layer():
         return self
 
     # Normalize left, top, right, and bottom values relative to this layer.
-    def normalize(self, left, top, right, bottom):
+    def _normalize(self, left, top, right, bottom):
         # If fractional then they are percentage of this layer's width or
         # height.
         if not left: left=0
@@ -257,7 +273,7 @@ class Layer():
 
     # Create and return child layer of this layer
     def child(self, left=0, top=0, right=0, bottom=0, fg=None, bg=None, font=None, style=None, border=None):
-        left, top, right, bottom = self.normalize(left, top, right, bottom)
+        left, top, right, bottom = self._normalize(left, top, right, bottom)
         c = Layer(self, left=left, top=top, right=right, bottom=bottom,
                   fg=fg or self.fg, bg=bg or self.bg,
                   font=font or self.font, style=style or self.style,
@@ -281,7 +297,7 @@ class Layer():
                 return True
         return False
 
-    # Given a surface, recursively update it with current layer and/or children
+    # Given a Surface, recursively update it with current layer and/or children
     # and return the new surface.
     def _update(self, surface, force=False):
         if not force and not self.redraw:
@@ -296,22 +312,6 @@ class Layer():
         self.redraw = False
         # return the surface
         return surface
-
-    # private method, wrap text list to width and return new list
-    @staticmethod
-    def _wrap(text, width):
-        def _wl(line):
-            line = line.rstrip(' ') # retain left white-space
-            while len(line) > width:
-                i = line[:width].rfind(' ')
-                if (i < 0):
-                    yield line[:width].rstrip(' ')
-                    line = line[width:].lstrip(' ')
-                else:
-                    yield line[:i].rstrip(' ')
-                    line = line[i+1:].lstrip(' ')
-            yield line
-        return [w.rstrip(' ') for line in text for w in _wl(line)]
 
     # Write arbitrary text to this layer
     def text(self, text):
@@ -337,7 +337,7 @@ class Layer():
                     if self.style.slash:
                         text = [s[:columns].rstrip(' ') for s in text]
                     else:
-                        text = self._wrap(text, columns)
+                        text = _wrap(text, columns)
                 else:
                     # find longest
                     columns = max(len(t) for t in text)
@@ -370,7 +370,7 @@ class Layer():
                 if self.style.slash:
                     text = [s[:columns].rstrip(' ') for s in text]
                 else:
-                    text = self._wrap(text, columns)
+                    text = _wrap(text, columns)
 
             # discard extra lines
             text = text[:lines]
@@ -438,45 +438,38 @@ class Layer():
         return self
 
     # Return tuple of (left, top, right, bottom) for this layer, relative to the screen.
-    # Note this function recurses.
+    # Note this box is one pixel smaller than a PIL box
     def box(self):
-        if self.parent:
-            left, top, _, _ = self.parent.box()
-            left = left + self.left
-            top = top + self.top
-        else:
-            left = self.left
-            top = self.top
-        return left, top, left+self.width-1, top+self.height-1
+        return self.abs_left, self.abs_top, self.abs_left+self.width-1, self.abs_top+self.height-1
 
-# Used by Screen.update/Layer._update()
+# This is used by Screen.update() and Layer._update()
 class _Surface():
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.img = None     # composited image, if any
-        self.updated = None # (l,t,r,b) of portion to display, if any
+        self.img = None # composited image, if any
+        self.box = None # portion to actually display, if any
 
     # composite layer's image over the current surface
     def composite(self, layer):
-        if not layer.abs_xoff and not layer.abs_yoff and layer.width == self.width and layer.height == self.height:
+        if not layer.abs_left and not layer.abs_top and layer.width == self.width and layer.height == self.height:
             # full size layer, either composite or copy
             if layer.transparent:
-                if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
+                if not self.img: self.img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
                 self.img = Image.alpha_composite(self.img, layer.img)
             else:
                 self.img = layer.img.copy()
         else:
             # sub layer, composite it to the right place
-            if not self.img: self.img = Image.new("RGBA", (self.idth, self.height), Color("black").rgbx)
-            self.img = _composite(self.img, layer.img, layer.abs_xoff, layer.abs_yoff)
+            if not self.img: self.img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
+            self.img = _composite(self.img, layer.img, layer.abs_left, layer.abs_top)
 
-        # remember the first layer that calls this (will be the biggest)
-        if not self.updated: self.updated = (layer.abs_xoff, layer.abs_yoff, layer.abs_xoff+layer.width-1, layer.abs_yoff+layer.height-1)
+        # remember absolute coordinates of the first layer that calls this (will be the biggest)
+        if not self.box: self.box = layer.box()
 
-    # write surface to frame buffer, if needed
+    # write surface to frame buffer, if defined
     def update(self, fb):
-        if self.img: fb.pack(self.img.convert("RGB").tobytes(), *self.updated)
+        if self.img: fb.pack(self.img.convert("RGB").tobytes(), *self.box)
 
 # All layers are children of the screen layer
 class Screen(Layer):
@@ -502,7 +495,7 @@ class Screen(Layer):
 
     # Recursively update screen if changed or forced
     def update(self, force=False):
-        surface = _Surface.new(self.width, self.height)
+        surface = _Surface(self.width, self.height)
         surface = self._update(surface, force)
-        surface.update(fb)
+        surface.update(self.fb)
         return self

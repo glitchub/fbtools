@@ -56,7 +56,7 @@ margin += border
 screen = screen.Screen(fbdev=device, fg=fg, bg=bg, border=border)
 
 # Load image between margins
-screen.child(left=margin, top=margin, right=-margin, bottom=-margin).image(filename, stretch=stretch).merge()
+screen.child(left=margin, top=margin, right=-margin, bottom=-margin).image(filename, stretch=stretch)
 
 # Update the framebuffer
 screen.update()
