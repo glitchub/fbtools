@@ -1,20 +1,15 @@
 # Frame buffer graphics manipulation using PIL
 import os, sys, re, PIL.Image as Image, PIL.ImageFont as Font, PIL.ImageDraw as Draw
 
-try: import fb              # if fbtools is in the path
-except: from . import fb    # if fbtools is a package
+try:
+    import fb               # works if fbtools is in the path
+except ImportError:
+    from fbtools import fb  # works if fbtools is a package
 
 # directory containing this module contains needed fonts
 _here = os.path.dirname(__file__) or '.'
 
-# composite overlay Image over base and return the result
-def _composite(base, overlay, left=0, top=0):
-    assert(left+overlay.width <= base.width and top+overlay.height <= base.height) # offset overlay must be on base
-    box = (left, top, left+overlay.width, top+overlay.height) # Note: PIL boxes are one larger than Layer boxes 
-    base.paste(Image.alpha_composite(base.crop(box), overlay), box)
-    return base
-
-# wrap test to specified width
+# wrap text to specified width
 def _wrap(text, width):
     def _wl(line):
         line = line.rstrip(' ') # retain left white-space
@@ -29,7 +24,7 @@ def _wrap(text, width):
         yield line
     return [w.rstrip(' ') for line in text for w in _wl(line)]
 
-class Color():
+class _Color():
     _colors = {
         # https://en.wikipedia.org/wiki/Web_colors
         "white"     : (255, 255, 255),
@@ -52,11 +47,11 @@ class Color():
     }
 
     def __new__(this, color, **kwargs):
-        if type(color) is Color: return color   # already a Color, just return it
+        if type(color) is _Color: return color   # already a _Color, just return it
         return super().__new__(this)            # otherwise return new object
 
     def __init__(self, color, alpha=255):
-        if type(color) is Color: return         # already a Color, do nothing
+        if type(color) is _Color: return         # already a _Color, do nothing
         color = (color or "black").lower()
         if color == "transparent": color = "black00"
         if re.match('^[a-z]+\d{2}$', color):
@@ -96,8 +91,7 @@ class Color():
     @property
     def rgbx(self): return (self.red, self.green, self.blue, 255)
 
-
-class Align():
+class _Align():
     _west = 1
     _north = 2
     _east = 4
@@ -180,10 +174,10 @@ class Style():
             assert self.min >= 0
             self.entire = '!' in got
             self.slash = '/' in got
-        self.align = Align(got.get('@','center'))
+        self.align = _Align(got.get('@','center'))
 
-# An image layer
-class Layer():
+# An image layer, the class is not exposed by the methods are
+class _Layer():
 
     @property
     def width(self): return self.right-self.left+1
@@ -191,75 +185,51 @@ class Layer():
     @property
     def height(self): return self.bottom-self.top+1
 
+    @property
+    def size(self): return self.width, self.height
+
     # true if fg or bg is transparent
     @property
     def transparent(self): return self.fg.transparent or self.bg.transparent
 
-    # Create layer, note coordinates are relative to the parent layer.
+    # Create layer, note coordinates are relative to the parent layer, and must be constrained within it
     def __init__(self, parent=None, left=None, top=None, right=None, bottom=None, fg=None, bg=None, font=None, style=None, border=None):
         self.left = int(left)
         self.top = int(top)
         self.right = int(right)
         self.bottom = int(bottom)
-        if not (0 <= self.left < self.right and 0 <= self.top < self. bottom):
-            raise Exception("Invalid size left=%d top=%d right=%d bottom=%d" % (self.left, self.right, self.top, self.bottom))
-        self.fg = Color(fg or "white")
-        self.bg = Color(bg or "transparent")
+        self.parent = parent    # remember parent
+        if self.parent:
+            assert 0 <= self.left <= self.right < self.parent.width and 0 <= self.top <= self.bottom < self.parent.height
+            # track absolute coordinates on the screen layer
+            self.abs_left = self.parent.abs_left + self.left
+            self.abs_top = self.parent.abs_top + self.top
+        else:
+            # left and top must be 0, and right and bottom are presumably the size of the framebuffer
+            assert 0 == self.left <= self.right and 0 == self.top <= self.bottom
+            self.abs_left = 0
+            self.abs_top = 0
+        self.fg = _Color(fg or "white")
+        self.bg = _Color(bg or "transparent")
         self.borderwidth = int(border or 0)
         self.font = font or _here+"/DejaVuSansMono.ttf"
         self.style = Style(style)
-        self.img = Image.new("RGBA", (self.width, self.height), self.bg.rgba)
+        self.img = Image.new("RGBA", self.size, self.bg.rgba)
         self.border()
         self.children = []      # layer has no children
-        self.redraw = True      # layer needs to be updated
-        self.parent = parent    # remember parent and absolute screen offset
-        if self.parent:
-            # track absolute coordinates on the screen layer
-            self.abs_left = parent.abs_left + self.left
-            self.abs_top = parent.abs_top + self.top
-        else:
-            self.abs_left = 0
-            self.abs_top = 0
-
-    # Remove layer and all children, must not subsequently be used
-    def remove(self):
-        self.img = None
-        for c in self.children:         # recursively remove all children
-            c.parent = None
-            c.remove()
-        self.children = []
-        if self.parent:                 # then unlink from parent
-            try:
-                self.parent.children.remove(self)
-            except ValueError:
-                pass
-            self.parent.redraw = True   # parent should be redrawn
-            self.parent = None          # last, dereference parent
-
-    # draw a border on the layer
-    def border(self, width=None, color=None):
-        if not width: width = self.borderwidth
-        if width:
-            color = Color(color or self.fg).rgba
-            draw = Draw.Draw(self.img)
-            draw.rectangle((0, 0, self.width-1, self.borderwidth-1), fill=color)                       # across the top
-            draw.rectangle((0, 0, self.borderwidth-1, self.height-1), fill=color)                      # down the left
-            draw.rectangle((self.width-self.borderwidth, 0, self.width-1, self.height-1), fill=color)  # down the right
-            draw.rectangle((0, self.height-self.borderwidth, self.width-1, self.height-1), fill=color) # across the bottom
-            self.redraw = True
-        return self
+        self.updated = True     # layer has been updated
 
     # Normalize left, top, right, and bottom values relative to this layer.
     def _normalize(self, left, top, right, bottom):
         # If fractional then they are percentage of this layer's width or
         # height.
-        if not left: left=0
+        if left is None: left=0
         elif -1 < left < 1: left *= self.width-1
-        if not top: top=0
+        if top is None: top=0
         elif -1 < top < 1: top *= self.height-1
-        if not right: right=self.width-1
+        if right is None: right=self.width-1
         elif -1 < right < 1: right *= self.width-1
-        if not bottom: bottom=self.height-1
+        if bottom is None: bottom=self.height-1
         elif -1 < bottom < 1: bottom *= self.height-1
 
         # If negative then they are offset from the this layer's right or
@@ -271,49 +241,89 @@ class Layer():
 
         return int(left), int(top), int(right), int(bottom)
 
-    # Create and return child layer of this layer
-    def child(self, left=0, top=0, right=0, bottom=0, fg=None, bg=None, font=None, style=None, border=None):
-        left, top, right, bottom = self._normalize(left, top, right, bottom)
-        c = Layer(self, left=left, top=top, right=right, bottom=bottom,
-                  fg=fg or self.fg, bg=bg or self.bg,
-                  font=font or self.font, style=style or self.style,
-                  border=border)
-        self.children.append(c) # remember it
-        return c
+    # overlay layer with image at designated offset
+    def _overlay(self, img, left=0, top=0):
+        assert left+img.width <= self.width and top+img.height <= self.height
+        if img.size == self.size:
+            self.img = Image.alpha_composite(self.img, img)
+        else:
+            pilbox = (left, top, left+img.width, top+img.height)
+            self.img.paste(Image.alpha_composite(self.img.crop(pilbox), img), pilbox)
+        self.updated = True
 
-    # Clear layer with specified or current background color, background transparency is ignored
-    # All children are removed()
-    def clear(self, color=None):
-        for c in list(self.children): c.remove()
-        self.img = Image.new("RGBA", (self.width, self.height), Color(color or self.bg).rgbx)
-        self.redraw = True
-        return self
-
-    # Return true if layer or any children need redraw
-    def _redrawable(self):
-        if self.redraw: return True
+    # Return true if layer or any children are updated
+    def _isupdated(self):
+        if self.updated: return True
         for c in self.children:
-            if c._redrawable():
+            if c._isupdated():
                 return True
         return False
 
-    # Given a Surface, recursively update it with current layer and/or children
-    # and return the new surface.
-    def _update(self, surface, force=False):
-        if not force and not self.redraw:
-            # look for redrawable children
-            r = [c for c in self.children if c._redrawable()]
+    # Given an _Update object, recursively update it with current layer and/or children
+    def _update(self, upd, force=False):
+        if not force and not self.updated:
+            # look for updateable children
+            r = [c for c in self.children if c._isupdated()]
             if len(r) == 0: return None  # done if none
-            if len(r) == 1 and not r[0].transparent: return r[0]._update(surface) # if exactly one and not transparent, update and return
-        # Composite this layer onto the surface
-        surface.composite(self)
-        # The recursively composite all children
-        for c in self.children: surface = c._update(surface, True)
-        self.redraw = False
-        # return the surface
-        return surface
+            if len(r) == 1 and not r[0].transparent: return r[0]._update(upd) # if exactly one and not transparent, update and return
+        # Install this layer onto the surface
+        upd._overlay(self)
+        # Then recursively install all children
+        for c in self.children: upd = c._update(upd, force=True)
+        self.updated = False
+        return upd
 
-    # Write arbitrary text to this layer
+    # Create and return child layer of this layer
+    def child(self, left=0, top=0, right=0, bottom=0, fg=None, bg=None, font=None, style=None, border=None):
+        left, top, right, bottom = self._normalize(left, top, right, bottom)
+        c = _Layer(self, left=left, top=top, right=right, bottom=bottom,
+                   fg=fg or self.fg, bg=bg or self.bg,
+                   font=font or self.font, style=style or self.style,
+                   border=border)
+        self.children.append(c) # remember it
+        return c
+
+    # Public method - remove layer and all children, must not subsequently be used
+    def remove(self):
+        self.img = None
+        for c in self.children:         # recursively remove all children
+            c.parent = None
+            c.remove()
+        self.children = []
+        if self.parent:                 # then unlink from parent
+            try:
+                self.parent.children.remove(self)
+            except ValueError:
+                pass
+            self.parent.updated = True   # parent should be updated
+            self.parent = None          # last, dereference parent
+
+    # Public method, draw a border on the layer
+    def border(self, width=None, color=None):
+        if not width: width = self.borderwidth
+        if width and width < self.width and width < self.height:
+            color = _Color(color or self.fg).rgba
+            draw = Draw.Draw(self.img)
+            draw.rectangle((0, 0, self.width-1, self.borderwidth-1), fill=color)                       # across the top
+            draw.rectangle((0, 0, self.borderwidth-1, self.height-1), fill=color)                      # down the left
+            draw.rectangle((self.width-self.borderwidth, 0, self.width-1, self.height-1), fill=color)  # down the right
+            draw.rectangle((0, self.height-self.borderwidth, self.width-1, self.height-1), fill=color) # across the bottom
+            self.updated = True
+        return self
+
+    # Public method, clear layer to specified or current background color.
+    # Bckground transparency is ignored, all children are removed
+    def clear(self, color=None):
+        for c in list(self.children): c.remove()
+        self.img = Image.new("RGBA", self.size, _Color(color or self.bg).rgbx)
+        self.updated = True
+        return self
+
+    # Public mewthod, return tuple of (left, top, right, bottom) for this layer, relative to the screen.
+    def box(self):
+        return self.abs_left, self.abs_top, self.abs_left+self.width-1, self.abs_top+self.height-1
+
+    # Public method, write arbitrary text to this layer, using the layer's alignment
     def text(self, text):
         # Convert text escapes eg '\n' to corresponding controls
         text=(text or '').encode("raw_unicode_escape").decode("unicode_escape")
@@ -389,14 +399,15 @@ class Layer():
                 d.text((xoff, yoff), l, font = f, fill = self.fg.rgba)
                 yoff += charheight  # next line
 
-            self.redraw = True # screen update required
+            self.updated = True # screen update required
 
         return self
 
-    # Write an image to this layer, can be an Image(), or a name of an image
-    # file, or "-" to read formatted img data from stdin.  The image will be
-    # scaled to fit on this layer, if stretch is True will fit exactly else
-    # will be aligned as given (default centered).
+    # Piblic method, write an image to this layer
+    # Argument can be a PIL Image, or a name of an image file, or "-" to read
+    # formatted img data from stdin.  The image will be scaled to fit on this
+    # layer, if stretch is True will fit exactly else will be aligned as given
+    # (default centered).
     def image(self, img, align=None, stretch=None):
 
         if type(img) is Image:
@@ -412,14 +423,14 @@ class Layer():
 
         # resize as required
         xoff = yoff = 0
-        if img.width != self.width or img.height != self.height:
+        if img.size != self.size:
             if stretch:
-                img = img.resize((self.width, self.height))
+                img = img.resize(self.size)
             else:
                 aspect=min(self.width/img.width, self.height/img.height)
                 img = img.resize((int(img.width * aspect), int(img.height * aspect)))
 
-                align = Align(align)
+                align = _Align(align)
                 if align.north:
                     yoff = 0
                 elif align.south:
@@ -433,46 +444,40 @@ class Layer():
                     xoff = self.width - img.width
                 else:
                     xoff = (self.width - img.width) // 2
-        self.img = _composite(self.img, img, xoff, yoff)
-        self.redraw = True # screen update required
+        self._overlay(img, xoff, yoff)
         return self
 
-    # Return tuple of (left, top, right, bottom) for this layer, relative to the screen.
-    # Note this box is one pixel smaller than a PIL box
-    def box(self):
-        return self.abs_left, self.abs_top, self.abs_left+self.width-1, self.abs_top+self.height-1
+# Created by Screen.update() and passed to layer._update(), aggregate layers for display
+class _Update():
+    def __init__(self, screen):
+        assert type(screen) is Screen
+        self.screen = screen  # remember the screen layer
+        self.img = None       # image to write
+        self.box = None       # portion that is actually updated
 
-# This is used by Screen.update() and Layer._update()
-class _Surface():
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.img = None # composited image, if any
-        self.box = None # portion to actually display, if any
 
-    # composite layer's image over the current surface
-    def composite(self, layer):
-        if not layer.abs_left and not layer.abs_top and layer.width == self.width and layer.height == self.height:
-            # full size layer, either composite or copy
-            if layer.transparent:
-                if not self.img: self.img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
-                self.img = Image.alpha_composite(self.img, layer.img)
-            else:
-                self.img = layer.img.copy()
+    # overlay layer's image
+    def _overlay(self, layer):
+        if not self.box: self.box = layer.box() # remember the first layer that gets here
+        if layer == self.screen:
+            # copy the screen layer
+            self.img = self.screen.img.copy()
         else:
-            # sub layer, composite it to the right place
-            if not self.img: self.img = Image.new("RGBA", (self.width, self.height), Color("black").rgbx)
-            self.img = _composite(self.img, layer.img, layer.abs_left, layer.abs_top)
+            if not self.img: self.img = Image.new("RGBA", self.size, _Color("black").rgbx)
+            if layer.size == self.screen.size:
+                # just composite
+                self.img = Image.alpha_composite(self.image, layer.img)
+            else:
+                # crop, composite, and paste
+                pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
+                self.img.paste(Image.alpha_composite(self.img.crop(pilbox), layer.img), pilbox)
 
-        # remember absolute coordinates of the first layer that calls this (will be the biggest)
-        if not self.box: self.box = layer.box()
-
-    # write surface to frame buffer, if defined
-    def update(self, fb):
-        if self.img: fb.pack(self.img.convert("RGB").tobytes(), *self.box)
+    # write update image to frame buffer, if defined
+    def _update(self):
+        if self.img: self.creen.fb.pack(self.img.convert("RGB").tobytes(), *self.box)
 
 # All layers are children of the screen layer
-class Screen(Layer):
+class Screen(_Layer):
 
     def __init__(
             self,
@@ -486,16 +491,17 @@ class Screen(Layer):
         super().__init__(None, left=0, top=0, right=self.fb.width-1, bottom=self.fb.height-1, fg=fg, bg=bg or "black", font=font, style=style, border=border)
         if self.bg.transparent:
             # install existing framebuffer underneath non-opaque background
-            i = Image.frombytes("RGB", (self.width, self.height), self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
-            self.im = _composite(i, self.im)
+            i = self.img
+            self.img = Image.frombytes("RGB", self.size, self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
+            self._overlay(i)
 
     # prevent remove()
     def remove(self):
         raise RuntimeError("Can't remove the screen layer!")
 
-    # Recursively update screen if changed or forced
+    # Update screen if changed or forced
     def update(self, force=False):
-        surface = _Surface(self.width, self.height)
-        surface = self._update(surface, force)
-        surface.update(self.fb)
+        u = _Update(self)           # create the update surface
+        u = self._update(u, force)  # recursively install each layer
+        u._update()                 # write to the screen
         return self

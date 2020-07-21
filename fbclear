@@ -14,8 +14,10 @@ Options are:
 
 import os, sys, getopt
 
-try: import screen                 # works if this executable is in the fbtools directory
-except: from fbtools import screen # works if fbtools is installed as a package
+try:
+    import screen               # works if this executable is in the fbtools directory
+except ImportError:
+    from fbtools import screen  # works if fbtools is installed as a package
 
 color="black"
 device="/dev/fb0"

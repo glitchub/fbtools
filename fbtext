@@ -23,8 +23,10 @@ alpha), then existing framebuffer content will be overlayed.
 
 import os, sys, getopt
 
-try: import screen                 # works if this executable is in the fbtools directory
-except: from fbtools import screen # works if fbtools is installed as a package
+try:
+    import screen               # works if this executable is in the fbtools directory
+except ImportError:
+    from fbtools import screen  # works if fbtools is installed as a package
 
 
 border = 0

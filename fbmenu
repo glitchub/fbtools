@@ -40,9 +40,10 @@ On cancel or timeout, prints nothing. On error, exit status will be non-zero.
 """
 import os, sys, getopt, traceback
 
-try: import screen, touch                   # works if this executable is in the fbtools directory
-except: from fbtools import screen, touch   # works if fbtools is installed as a package
-
+try:
+    import screen, touch                # works if this executable is in the fbtools directory
+except ImportError:
+    from fbtools import screen, touch   # works if fbtools is installed as a package
 
 cls = True
 bg = None
