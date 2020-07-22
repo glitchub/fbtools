@@ -20,7 +20,7 @@ Options are:
     -p "Prompt string"      - show prompt string at top
     -r                      - with -i, enable "radio buttons"
     -s style                - screen font style, default is ">30<50"
-    -S size                 - label font style, default is whatever was set with -s
+    -S style                - label font style, default is whatever was set for -s
     -t device               - touch event device
     -x seconds              - timeout after specified seconds
 

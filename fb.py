@@ -35,5 +35,5 @@ class Framebuffer():
     # get framebuffer to rgb data
     def unpack(self):
         rgb = create_string_buffer(self.height * self.width * 3)
-        if self.lib.fbunpack(byref(self.fbinfo), rgb): raise Exception("fbunpack failed")
+        self.lib.fbunpack(byref(self.fbinfo), rgb)
         return bytes(rgb)

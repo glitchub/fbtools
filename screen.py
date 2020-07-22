@@ -274,7 +274,7 @@ class _Layer():
         return upd
 
     # Create and return child layer of this layer
-    def child(self, left=0, top=0, right=0, bottom=0, fg=None, bg=None, font=None, style=None, border=None):
+    def child(self, left=None, top=None, right=None, bottom=None, fg=None, bg=None, font=None, style=None, border=None):
         left, top, right, bottom = self._normalize(left, top, right, bottom)
         c = _Layer(self, left=left, top=top, right=right, bottom=bottom,
                    fg=fg or self.fg, bg=bg or self.bg,
@@ -427,7 +427,7 @@ class _Layer():
             if stretch:
                 img = img.resize(self.size)
             else:
-                aspect=min(self.width/img.width, self.height/img.height)
+                aspect = min(self.width/img.width, self.height/img.height)
                 img = img.resize((int(img.width * aspect), int(img.height * aspect)))
 
                 align = _Align(align)
@@ -455,26 +455,31 @@ class _Update():
         self.img = None       # image to write
         self.box = None       # portion that is actually updated
 
-
-    # overlay layer's image
+    # overlay current with layer image
     def _overlay(self, layer):
         if not self.box: self.box = layer.box() # remember the first layer that gets here
-        if layer == self.screen:
-            # copy the screen layer
-            self.img = self.screen.img.copy()
-        else:
-            if not self.img: self.img = Image.new("RGBA", self.size, _Color("black").rgbx)
-            if layer.size == self.screen.size:
-                # just composite
-                self.img = Image.alpha_composite(self.image, layer.img)
+        if not self.img:
+            # no current image
+            if layer == self.screen:
+                # copy the base layer directly
+                self.img = self.screen.img.copy()
             else:
-                # crop, composite, and paste
-                pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
-                self.img.paste(Image.alpha_composite(self.img.crop(pilbox), layer.img), pilbox)
+                # create empty image and paste layer on it
+                self.img = Image.new("RGBA", self.screen.size)
+                self.img.paste(layer.img, (layer.abs_left, layer.abs_top))
+        elif layer.size == self.screen.size:
+            # composite layer over current
+            self.img = Image.alpha_composite(self.img, layer.img)
+        else:
+            # crop, composite, and paste layer image over current
+            pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
+            self.img.paste(Image.alpha_composite(self.img.crop(pilbox), layer.img), pilbox)
 
     # write update image to frame buffer, if defined
     def _update(self):
-        if self.img: self.creen.fb.pack(self.img.convert("RGB").tobytes(), *self.box)
+        print("Update",self.box)
+        if self.img:
+            self.screen.fb.pack(self.img.convert("RGB").tobytes(), *self.box)
 
 # All layers are children of the screen layer
 class Screen(_Layer):
