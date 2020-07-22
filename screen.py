@@ -217,7 +217,7 @@ class _Layer():
         self.img = Image.new("RGBA", self.size, self.bg.rgba)
         self.border()
         self.children = []      # layer has no children
-        self.updated = True     # layer has been updated
+        self.redraw = True      # layer needs redraw
 
     # Normalize left, top, right, and bottom values relative to this layer.
     def _normalize(self, left, top, right, bottom):
@@ -249,29 +249,7 @@ class _Layer():
         else:
             pilbox = (left, top, left+img.width, top+img.height)
             self.img.paste(Image.alpha_composite(self.img.crop(pilbox), img), pilbox)
-        self.updated = True
-
-    # Return true if layer or any children are updated
-    def _isupdated(self):
-        if self.updated: return True
-        for c in self.children:
-            if c._isupdated():
-                return True
-        return False
-
-    # Given an _Update object, recursively update it with current layer and/or children
-    def _update(self, upd, force=False):
-        if not force and not self.updated:
-            # look for updateable children
-            r = [c for c in self.children if c._isupdated()]
-            if len(r) == 0: return None  # done if none
-            if len(r) == 1 and not r[0].transparent: return r[0]._update(upd) # if exactly one and not transparent, update and return
-        # Install this layer onto the surface
-        upd._overlay(self)
-        # Then recursively install all children
-        for c in self.children: upd = c._update(upd, force=True)
-        self.updated = False
-        return upd
+        self.redraw = True
 
     # Create and return child layer of this layer
     def child(self, left=None, top=None, right=None, bottom=None, fg=None, bg=None, font=None, style=None, border=None):
@@ -283,7 +261,7 @@ class _Layer():
         self.children.append(c) # remember it
         return c
 
-    # Public method - remove layer and all children, must not subsequently be used
+    # Public method - remove layer and all children, they must not subsequently be used
     def remove(self):
         self.img = None
         for c in self.children:         # recursively remove all children
@@ -295,7 +273,7 @@ class _Layer():
                 self.parent.children.remove(self)
             except ValueError:
                 pass
-            self.parent.updated = True   # parent should be updated
+            self.parent.redraw = True   # parent should be updated
             self.parent = None          # last, dereference parent
 
     # Public method, draw a border on the layer
@@ -308,7 +286,7 @@ class _Layer():
             draw.rectangle((0, 0, self.borderwidth-1, self.height-1), fill=color)                      # down the left
             draw.rectangle((self.width-self.borderwidth, 0, self.width-1, self.height-1), fill=color)  # down the right
             draw.rectangle((0, self.height-self.borderwidth, self.width-1, self.height-1), fill=color) # across the bottom
-            self.updated = True
+            self.redraw = True
         return self
 
     # Public method, clear layer to specified or current background color.
@@ -316,7 +294,7 @@ class _Layer():
     def clear(self, color=None):
         for c in list(self.children): c.remove()
         self.img = Image.new("RGBA", self.size, _Color(color or self.bg).rgbx)
-        self.updated = True
+        self.redraw = True
         return self
 
     # Public mewthod, return tuple of (left, top, right, bottom) for this layer, relative to the screen.
@@ -399,7 +377,7 @@ class _Layer():
                 d.text((xoff, yoff), l, font = f, fill = self.fg.rgba)
                 yoff += charheight  # next line
 
-            self.updated = True # screen update required
+            self.redraw = True # screen update required
 
         return self
 
@@ -447,40 +425,6 @@ class _Layer():
         self._overlay(img, xoff, yoff)
         return self
 
-# Created by Screen.update() and passed to layer._update(), aggregate layers for display
-class _Update():
-    def __init__(self, screen):
-        assert type(screen) is Screen
-        self.screen = screen  # remember the screen layer
-        self.img = None       # image to write
-        self.box = None       # portion that is actually updated
-
-    # overlay current with layer image
-    def _overlay(self, layer):
-        if not self.box: self.box = layer.box() # remember the first layer that gets here
-        if not self.img:
-            # no current image
-            if layer == self.screen:
-                # copy the base layer directly
-                self.img = self.screen.img.copy()
-            else:
-                # create empty image and paste layer on it
-                self.img = Image.new("RGBA", self.screen.size)
-                self.img.paste(layer.img, (layer.abs_left, layer.abs_top))
-        elif layer.size == self.screen.size:
-            # composite layer over current
-            self.img = Image.alpha_composite(self.img, layer.img)
-        else:
-            # crop, composite, and paste layer image over current
-            pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
-            self.img.paste(Image.alpha_composite(self.img.crop(pilbox), layer.img), pilbox)
-
-    # write update image to frame buffer, if defined
-    def _update(self):
-        print("Update",self.box)
-        if self.img:
-            self.screen.fb.pack(self.img.convert("RGB").tobytes(), *self.box)
-
 # All layers are children of the screen layer
 class Screen(_Layer):
 
@@ -500,13 +444,37 @@ class Screen(_Layer):
             self.img = Image.frombytes("RGB", self.size, self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
             self._overlay(i)
 
-    # prevent remove()
+    # Prevent remove()
     def remove(self):
         raise RuntimeError("Can't remove the screen layer!")
 
+    # Return true if layer or any child must be redrawn
+    def _redrawable(self, layer):
+        if layer.redraw: return True
+        # any children to redraw?
+        r = [c for c in layer.children if self._redrawable(c)] # recurse for each child
+        if not r: return False
+        # this layer must also redraw if more than one child or child is transparent
+        if len(r) > 2 or r[0].transparent: layer.redraw = True
+        return True
+
+    # Redraw layers onto self.upimg
+    def _redraw(self, layer, force=False):
+        if force or layer.redraw:
+            if not self.upbox: self.upbox = layer.box   # remember the first i.e. largest redrawn box
+            if layer != self:
+                # crop, composite, and paste layer image over upimg
+                pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
+                self.upimg.paste(Image.alpha_composite(self.upimg.crop(pilbox), layer.img), pilbox)
+        for c in layer.children: self._redraw(c, force or layer.redraw) # recurse for each child
+        layer.redraw = False
+
     # Update screen if changed or forced
     def update(self, force=False):
-        u = _Update(self)           # create the update surface
-        u = self._update(u, force)  # recursively install each layer
-        u._update()                 # write to the screen
+        if force or self._redrawable(self):
+            self.upimg = self.img.copy()    # start with a copy of the base layer
+            self.upbox = None
+            self._redraw(self, force)       # recursively update, self.upbox will contain the update area
+            self.fb.pack(self.uimg.convert("RGB").tobytes(), *self.upbox)
+            del(self.upimg)
         return self
