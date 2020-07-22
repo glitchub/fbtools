@@ -192,6 +192,10 @@ class _Layer():
     @property
     def transparent(self): return self.fg.transparent or self.bg.transparent
 
+    # tuple of (left, top, right, bottom) for this layer, relative to the screen.
+    @property
+    def box(self): return self.abs_left, self.abs_top, self.abs_left+self.width-1, self.abs_top+self.height-1
+
     # Create layer, note coordinates are relative to the parent layer, and must be constrained within it
     def __init__(self, parent=None, left=None, top=None, right=None, bottom=None, fg=None, bg=None, font=None, style=None, border=None):
         self.left = int(left)
@@ -296,10 +300,6 @@ class _Layer():
         self.img = Image.new("RGBA", self.size, _Color(color or self.bg).rgbx)
         self.redraw = True
         return self
-
-    # Public mewthod, return tuple of (left, top, right, bottom) for this layer, relative to the screen.
-    def box(self):
-        return self.abs_left, self.abs_top, self.abs_left+self.width-1, self.abs_top+self.height-1
 
     # Public method, write arbitrary text to this layer, using the layer's alignment
     def text(self, text):
@@ -448,25 +448,31 @@ class Screen(_Layer):
     def remove(self):
         raise RuntimeError("Can't remove the screen layer!")
 
-    # Return true if layer or any child must be redrawn
+    # Return true if layer or any child is redrawable
     def _redrawable(self, layer):
         if layer.redraw: return True
-        # any children to redraw?
-        r = [c for c in layer.children if self._redrawable(c)] # recurse for each child
-        if not r: return False
-        # this layer must also redraw if more than one child or child is transparent
-        if len(r) > 2 or r[0].transparent: layer.redraw = True
-        return True
+        for l in layer.children:
+            if self._redrawable(l):
+                return True
+        return False    
 
     # Redraw layers onto self.upimg
     def _redraw(self, layer, force=False):
-        if force or layer.redraw:
-            if not self.upbox: self.upbox = layer.box   # remember the first i.e. largest redrawn box
-            if layer != self:
-                # crop, composite, and paste layer image over upimg
-                pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
-                self.upimg.paste(Image.alpha_composite(self.upimg.crop(pilbox), layer.img), pilbox)
-        for c in layer.children: self._redraw(c, force or layer.redraw) # recurse for each child
+        if force: layer.redraw = True
+        if not layer.redraw:
+            # get redrawable children, must redraw this layer if more than 1
+            r = [l for l in layer.children if self._redrawable(l)]
+            if len(r) > 1: layer.redraw = True
+        if layer.redraw:
+            # redraw all children if this layer is redrawable
+            r = layer.children
+            if not self.upbox: self.upbox = layer.box # remember highest redrawable layer
+        if layer != self:
+            # crop, composite, and paste layer image over upimg
+            pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
+            self.upimg.paste(Image.alpha_composite(self.upimg.crop(pilbox), layer.img), pilbox)
+        # recurse redrawable children    
+        for l in r: self._redraw(l, layer.redraw)
         layer.redraw = False
 
     # Update screen if changed or forced
@@ -475,6 +481,6 @@ class Screen(_Layer):
             self.upimg = self.img.copy()    # start with a copy of the base layer
             self.upbox = None
             self._redraw(self, force)       # recursively update, self.upbox will contain the update area
-            self.fb.pack(self.uimg.convert("RGB").tobytes(), *self.upbox)
+            self.fb.pack(self.upimg.convert("RGB").tobytes(), *self.upbox)
             del(self.upimg)
         return self

@@ -117,7 +117,7 @@ for b in range(len(args)):
 screen.update()
 
 # wait for touch or timeout
-selected = touch.select(dict([b.box(),b] for b in buttons), timeout=timeout)
+selected = touch.select(dict([b.box,b] for b in buttons), timeout=timeout)
 
 if selected:
     # overlay button with 60% black to indicate press
