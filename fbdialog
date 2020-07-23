@@ -135,4 +135,4 @@ if selected:
     print(buttons.index(selected)+1)
 
 if cls:
-    screen.clear().update()
+    screen.clear("transparent").update()

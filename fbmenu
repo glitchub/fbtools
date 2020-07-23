@@ -182,4 +182,4 @@ while True:
         break
 
 if cls:
-    screen.clear().update()
+    screen.clear("transparent").update()
