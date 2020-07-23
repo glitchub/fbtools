@@ -293,13 +293,18 @@ class _Layer():
             self.redraw = True
         return self
 
-    # Public method, clear layer to specified or current background color.
-    # Bckground transparency is ignored, all children are removed
-    def clear(self, color=None):
-        for c in list(self.children): c.remove()
-        self.img = Image.new("RGBA", self.size, _Color(color or self.bg).rgbx)
+    # Public method, set layer to specified or current background color
+    def fill(self, fg=None, bg=None):
+        if fg: self.fg = _Color(fg)
+        if bg: self.bg = _Color(bg)
+        self.img = Image.new("RGBA", self.size, self.bg.rgba)
         self.redraw = True
         return self
+
+    # Same as above but also delete all children
+    def clear(self, fg=None, bg=None):
+        for c in list(self.children): c.remove()
+        return self.fill(fg, bg)
 
     # Public method, write arbitrary text to this layer, using the layer's alignment
     def text(self, text):
@@ -431,18 +436,20 @@ class Screen(_Layer):
     def __init__(
             self,
             fbdev = None,               # framebuffer device
-            bg=None, fg=None,           # default colors
-            font=None, style=None,      # default font and style
+            bg = None, fg = None,       # default colors
+            font = None, style = None,  # default font and style
+            overlay = None,             # treat as an overlay
             border = None               # add border of given width
         ):
 
         self.fb = fb.Framebuffer(device=fbdev)
         super().__init__(None, left=0, top=0, right=self.fb.width-1, bottom=self.fb.height-1, fg=fg, bg=bg or "black", font=font, style=style, border=border)
-        if self.bg.transparent:
-            # install existing framebuffer underneath non-opaque background
-            i = self.img
-            self.img = Image.frombytes("RGB", self.size, self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
-            self._overlay(i)
+
+        # remember root framebuffer contents if initial colors are transparent
+        if self.transparent:
+            self.root = Image.frombytes("RGB", self.size, self.fb.unpack(), "raw", "RGB", 0, 1).convert("RGBA")
+        else:
+            self.root = None
 
     # Prevent remove()
     def remove(self):
@@ -454,7 +461,7 @@ class Screen(_Layer):
         for l in layer.children:
             if self._redrawable(l):
                 return True
-        return False    
+        return False
 
     # Redraw layers onto self.upimg
     def _redraw(self, layer, force=False):
@@ -471,14 +478,17 @@ class Screen(_Layer):
             # crop, composite, and paste layer image over upimg
             pilbox = (layer.abs_left, layer.abs_top, layer.abs_left+layer.width, layer.abs_top+layer.height)
             self.upimg.paste(Image.alpha_composite(self.upimg.crop(pilbox), layer.img), pilbox)
-        # recurse redrawable children    
+        # recurse redrawable children
         for l in r: self._redraw(l, layer.redraw)
         layer.redraw = False
 
     # Update screen if changed or forced
     def update(self, force=False):
         if force or self._redrawable(self):
-            self.upimg = self.img.copy()    # start with a copy of the base layer
+            if self.root and self.transparent:
+                self.upimg = Image.alpha_composite(self.root, self.img)
+            else:
+                self.upimg = self.img.copy()
             self.upbox = None
             self._redraw(self, force)       # recursively update, self.upbox will contain the update area
             self.fb.pack(self.upimg.convert("RGB").tobytes(), *self.upbox)
